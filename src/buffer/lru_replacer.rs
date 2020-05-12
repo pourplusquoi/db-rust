@@ -54,17 +54,19 @@ impl<T> Replacer<T> for LRUReplacer<T>
   }
 
   fn victim(&mut self) -> Option<T> {
-    let first = match self.backward.iter().nth(0) {
-      None => None,
-      Some((key, val)) => Some((*key, val.clone())),
+    let (front_key, front_val) = match self.backward.iter().nth(0) {
+      None => (None, None),
+      Some((key, val)) => (Some(*key), Some(val)),
     };
-    match first {
+    match front_val {
+      None => (),
+      Some(val) => {
+        self.forward.remove(val);
+      }
+    }
+    match front_key {
       None => None,
-      Some((key, val)) => {
-        self.backward.remove(&key);
-        self.forward.remove(&val);
-        Some(val)
-      },
+      Some(ref key) => self.backward.remove(key),
     }
   }
 
