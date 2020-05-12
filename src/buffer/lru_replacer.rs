@@ -1,7 +1,7 @@
-use std::hash::Hash;
 use std::cmp::Eq;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::hash::Hash;
 
 // Note: The type `T` should be cheap to clone; otherwise it would be
 // expensive to use this trait.
