@@ -12,7 +12,18 @@ struct HeaderPage {
 }
 
 impl HeaderPage {
-  pub fn new() -> Self {
+  // pub fn new() -> Self {
+  //   HeaderPage {
+  //     data: [0 as char; PAGE_SIZE],
+  //     page_id: INVALID_PAGE_ID,
+  //     pin_count: 0,
+  //     is_dirty: false,
+  //   }
+  // }
+}
+
+impl Page for HeaderPage {
+  fn new() -> Self {
     HeaderPage {
       data: [0 as char; PAGE_SIZE],
       page_id: INVALID_PAGE_ID,
@@ -20,9 +31,7 @@ impl HeaderPage {
       is_dirty: false,
     }
   }
-}
 
-impl Page for HeaderPage {
   fn borrow(&self) -> &[char; PAGE_SIZE] {
     &self.data
   }
@@ -37,5 +46,17 @@ impl Page for HeaderPage {
 
   fn pin_count(&self) -> i32 {
     self.pin_count
+  }
+
+  fn pin_count_mut(&mut self) -> &mut i32 {
+    &mut self.pin_count
+  }
+
+  fn is_dirty(&self) -> bool {
+    self.is_dirty
+  }
+
+  fn is_dirty_mut(&mut self) -> &mut bool {
+    &mut self.is_dirty
   }
 }
