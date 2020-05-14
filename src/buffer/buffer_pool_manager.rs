@@ -48,7 +48,8 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
     match self.free_list.iter().nth(0).map(|x| *x) {
       Some(idx) => {
         self.free_list.remove(&idx);
-        Some(&mut self.pages[idx])
+        let page = &mut self.pages[idx];
+        Some(page)
       },
       None => {
         match self.replacer.victim() {
@@ -61,7 +62,8 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
             self.page_table.remove(&page.page_id());
             self.page_table.insert(page_id, idx);
             // TODO: Load the page from disk.
-            Some(&mut self.pages[idx])
+            let page = &mut self.pages[idx];
+            Some(page)
           },
         }
       },
