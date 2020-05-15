@@ -19,12 +19,21 @@ pub trait Page {
   fn is_dirty(&self) -> bool;
   fn is_dirty_mut(&mut self) -> &mut bool;
 
+  // Pins the page, increment the pin count by 1.
   fn pin(&mut self) {
     *self.pin_count_mut() += 1;
   }
 
-  fn unpin(&mut self) {
-    *self.pin_count_mut() -= 1;
+  // Unpins the page, decrement the pin count by 1.
+  // Returns false iff the pin count <= 0, which means that the page may not
+  // be unpinned.
+  fn unpin(&mut self) -> bool {
+    if self.pin_count() <= 0 {
+      false
+    } else {
+      *self.pin_count_mut() -= 1;
+      true
+    }
   }
 
   fn set_dirty(&mut self, is_dirty: bool) {
