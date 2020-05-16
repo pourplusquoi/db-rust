@@ -35,7 +35,7 @@ struct Reactor<R> where R: Replacer<usize> {
 
 impl<R> Reactor<R> where R: Replacer<usize> {
   pub fn new(db_file: &str) -> std::io::Result<Self> {
-    let mut rector = Reactor {
+    let rector = Reactor {
       replacer: R::new(),
       disk_mgr: DiskManager::new(db_file)?,
     };
