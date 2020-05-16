@@ -6,7 +6,7 @@ use std::clone::Clone;
 
 #[allow(dead_code)]
 pub struct TablePage {
-  data: [char; PAGE_SIZE],
+  data: [u8; PAGE_SIZE],
   page_id: PageId,
   pin_count: i32,
   is_dirty: bool,
@@ -15,7 +15,7 @@ pub struct TablePage {
 // impl TablePage {
 //   pub fn new() -> Self {
 //     TablePage {
-//       data: [0 as char; PAGE_SIZE],
+//       data: [0 as u8; PAGE_SIZE],
 //       page_id: INVALID_PAGE_ID,
 //       pin_count: 0,
 //       is_dirty: false,
@@ -37,18 +37,18 @@ impl Clone for TablePage {
 impl Page for TablePage {
   fn new() -> Self {
     TablePage {
-      data: [0 as char; PAGE_SIZE],
+      data: [0 as u8; PAGE_SIZE],
       page_id: INVALID_PAGE_ID,
       pin_count: 0,
       is_dirty: false,
     }
   }
 
-  fn borrow(&self) -> &[char; PAGE_SIZE] {
+  fn borrow(&self) -> &[u8; PAGE_SIZE] {
     &self.data
   }
 
-  fn borrow_mut(&mut self) -> &mut [char; PAGE_SIZE] {
+  fn borrow_mut(&mut self) -> &mut [u8; PAGE_SIZE] {
     &mut self.data
   }
 

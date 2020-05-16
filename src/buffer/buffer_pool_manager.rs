@@ -4,9 +4,7 @@ use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PageId;
 use crate::page::header_page::HeaderPage;
 use crate::page::page::Page;
-use std::hash::Hash;
 use std::clone::Clone;
-use std::cmp::Eq;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use log::info;
@@ -110,7 +108,7 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
 
   pub fn flush_page(&self, page_id: PageId) -> bool {
     info!("Flush page; page_id = {}", page_id);
-    if (page_id == INVALID_PAGE_ID) {
+    if page_id == INVALID_PAGE_ID {
       warn!("Page ID is invalid");
       return false;
     }

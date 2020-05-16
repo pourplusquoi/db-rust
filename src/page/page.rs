@@ -3,7 +3,7 @@ use crate::common::config::PageId;
 
 // #[allow(dead_code)]
 // pub struct Page {
-//   data: [char; PAGE_SIZE],
+//   data: [u8; PAGE_SIZE],
 //   page_id: PageId,
 //   pin_count: i32,
 //   is_dirty: bool,
@@ -11,8 +11,8 @@ use crate::common::config::PageId;
 
 pub trait Page {
   fn new() -> Self;
-  fn borrow(&self) -> &[char; PAGE_SIZE];
-  fn borrow_mut(&mut self) -> &mut [char; PAGE_SIZE];
+  fn borrow(&self) -> &[u8; PAGE_SIZE];
+  fn borrow_mut(&mut self) -> &mut [u8; PAGE_SIZE];
   fn page_id(&self) -> PageId;
   fn pin_count(&self) -> i32;
   fn pin_count_mut(&mut self) -> &mut i32;
