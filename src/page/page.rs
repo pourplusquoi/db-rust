@@ -14,6 +14,7 @@ pub trait Page {
   fn borrow(&self) -> &[u8; PAGE_SIZE];
   fn borrow_mut(&mut self) -> &mut [u8; PAGE_SIZE];
   fn page_id(&self) -> PageId;
+  fn page_id_mut(&mut self) -> &mut PageId;
   fn pin_count(&self) -> i32;
   fn pin_count_mut(&mut self) -> &mut i32;
   fn is_dirty(&self) -> bool;
@@ -36,7 +37,11 @@ pub trait Page {
     }
   }
 
-  fn set_dirty(&mut self, is_dirty: bool) {
+  fn set_page_id(&mut self, page_id: PageId) {
+    *self.page_id_mut() = page_id;
+  }
+
+  fn set_is_dirty(&mut self, is_dirty: bool) {
     *self.is_dirty_mut() = is_dirty;
   }
 }

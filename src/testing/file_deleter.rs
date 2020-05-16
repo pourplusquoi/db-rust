@@ -1,4 +1,5 @@
 use std::fs;
+use std::ops::Drop;
 
 pub struct FileDeleter<'a> {
   file_paths: Vec<&'a str>,

@@ -12,17 +12,6 @@ pub struct HeaderPage {
   is_dirty: bool,
 }
 
-// impl HeaderPage {
-//   pub fn new() -> Self {
-//     HeaderPage {
-//       data: [0 as u8; PAGE_SIZE],
-//       page_id: INVALID_PAGE_ID,
-//       pin_count: 0,
-//       is_dirty: false,
-//     }
-//   }
-// }
-
 impl Clone for HeaderPage {
   fn clone(&self) -> Self {
     HeaderPage {
@@ -54,6 +43,10 @@ impl Page for HeaderPage {
 
   fn page_id(&self) -> PageId {
     self.page_id
+  }
+
+  fn page_id_mut(&mut self) -> &mut PageId {
+    &mut self.page_id
   }
 
   fn pin_count(&self) -> i32 {

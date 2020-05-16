@@ -12,17 +12,6 @@ pub struct TablePage {
   is_dirty: bool,
 }
 
-// impl TablePage {
-//   pub fn new() -> Self {
-//     TablePage {
-//       data: [0 as u8; PAGE_SIZE],
-//       page_id: INVALID_PAGE_ID,
-//       pin_count: 0,
-//       is_dirty: false,
-//     }
-//   }
-// }
-
 impl Clone for TablePage {
   fn clone(&self) -> Self {
     TablePage {
@@ -54,6 +43,10 @@ impl Page for TablePage {
 
   fn page_id(&self) -> PageId {
     self.page_id
+  }
+
+  fn page_id_mut(&mut self) -> &mut PageId {
+    &mut self.page_id
   }
 
   fn pin_count(&self) -> i32 {

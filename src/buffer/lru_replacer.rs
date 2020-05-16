@@ -11,18 +11,16 @@ pub struct LRUReplacer<T> where T: Clone + Eq + Hash {
   clock: u32,
 }
 
-impl<T> LRUReplacer<T> where T: Clone + Eq + Hash {
-  pub fn new() -> Self {
+impl<T> Replacer<T> for LRUReplacer<T>
+    where T: Clone + Eq + Hash {
+
+  fn new() -> Self {
     LRUReplacer {
       forward: HashMap::new(),
       backward: BTreeMap::new(),
       clock: 0,
     }
   }
-}
-
-impl<T> Replacer<T> for LRUReplacer<T>
-    where T: Clone + Eq + Hash {
 
   fn insert(&mut self, val: T) {
     match self.forward.get(&val) {
