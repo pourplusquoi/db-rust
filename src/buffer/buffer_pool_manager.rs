@@ -12,37 +12,6 @@ use std::ops::Drop;
 use log::info;
 use log::warn;
 
-struct Data<T> where T: Page + Clone {
-  pages: Vec<T>,
-  page_table: HashMap<PageId, usize>,
-  free_list: HashSet<usize>,
-}
-
-impl<T> Data<T> where T: Page + Clone {
-  pub fn new(size: usize) -> Self {
-    Data {
-      pages: vec![T::new(); size],
-      page_table: HashMap::new(),
-      free_list: HashSet::new(),
-    }
-  }
-}
-
-struct Reactor<R> where R: Replacer<usize> {
-  replacer: R,
-  disk_mgr: DiskManager,
-}
-
-impl<R> Reactor<R> where R: Replacer<usize> {
-  pub fn new(db_file: &str) -> std::io::Result<Self> {
-    let rector = Reactor {
-      replacer: R::new(),
-      disk_mgr: DiskManager::new(db_file)?,
-    };
-    Ok(rector)
-  }
-}
-
 pub struct BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   pool_size: usize,
   data: Data<T>,
@@ -229,6 +198,37 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     for byte in page.borrow_mut().iter_mut() {
       *byte = 0;
     }
+  }
+}
+
+struct Data<T> where T: Page + Clone {
+  pages: Vec<T>,
+  page_table: HashMap<PageId, usize>,
+  free_list: HashSet<usize>,
+}
+
+impl<T> Data<T> where T: Page + Clone {
+  pub fn new(size: usize) -> Self {
+    Data {
+      pages: vec![T::new(); size],
+      page_table: HashMap::new(),
+      free_list: HashSet::new(),
+    }
+  }
+}
+
+struct Reactor<R> where R: Replacer<usize> {
+  replacer: R,
+  disk_mgr: DiskManager,
+}
+
+impl<R> Reactor<R> where R: Replacer<usize> {
+  pub fn new(db_file: &str) -> std::io::Result<Self> {
+    let rector = Reactor {
+      replacer: R::new(),
+      disk_mgr: DiskManager::new(db_file)?,
+    };
+    Ok(rector)
   }
 }
 
