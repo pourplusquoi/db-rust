@@ -111,11 +111,13 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
   }
 
   pub fn delete_page(&self, page_id: PageId) -> bool {
+    info!("Delete page; page_id = {}", page_id);
     // TODO: Implement this.
     false
   }
 
   pub fn new_page(&mut self) -> Option<(PageId, &mut T)> {
+    info!("New page");
     self.prepare_page(|| self.disk_mgr.allocate_page(), /*need_reset=*/ true)
         .map(|(page_id, page)| {
           // TODO: Update new page's metadata.
@@ -172,7 +174,7 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
   }
 
   fn reset_page(page: &mut T) {
-    info!("Resetting page");
+    info!("Reset page");
     // TODO: Implement this.
   }
 }
