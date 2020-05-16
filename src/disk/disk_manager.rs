@@ -20,7 +20,11 @@ impl DiskManager {
 
   pub fn new(db_file: &str) -> std::io::Result<Self> {
     let disk_mgr = DiskManager {
-      db_io: OpenOptions::new().write(true).create(true).open(db_file)?,
+      db_io: OpenOptions::new()
+          .read(true)
+          .write(true)
+          .create(true)
+          .open(db_file)?,
       next_page_id: AtomicPageId::new(0),
     };
     Ok(disk_mgr)
@@ -50,12 +54,13 @@ impl DiskManager {
   }
 
   pub fn allocate_page(&mut self) -> PageId {
-    let next_page_id = self.next_page_id.fetch_add(1, Ordering::SeqCst);
-    next_page_id - 1
+    self.next_page_id.fetch_add(1, Ordering::SeqCst)
+    // TODO: Allocate new page (operations like create index/table).
+    // For now just keep an increasing counter.
   }
 
-  pub fn deallocate_page(&self, page_id: PageId) {
-    // TODO: Deallocate page (operations like drop index/table)
+  pub fn deallocate_page(&mut self, page_id: PageId) {
+    // TODO: Deallocate page (operations like drop index/table).
     // Need bitmap in header page for tracking pages.
   }
 
@@ -80,6 +85,7 @@ impl DiskManager {
     let mut pos = 0;
     while pos < size {
       let bytes_read = file.read(&mut data[pos..])?;
+      println!("Read {} bytes", bytes_read);
       if bytes_read == 0 {
         return Err(Error::new(ErrorKind::UnexpectedEof,
                               "I/O error: read 0 byte"));
@@ -89,3 +95,45 @@ impl DiskManager {
     Ok(())
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::testing::file_deleter::FileDeleter;
+  use super::*;
+
+  #[test]
+  fn disk_manager() {
+    // Test file deleter with RAII.
+    let mut file_deleter = FileDeleter::new();
+
+    let file_path = "/tmp/testfile";
+    file_deleter.push(&file_path);
+    let result = DiskManager::new(&file_path);
+    assert!(result.is_ok(), "Failed to create DiskManager");
+
+    let mut disk_mgr = result.unwrap();
+    let page_id = disk_mgr.allocate_page();
+    assert_eq!(0, page_id);
+
+    let mut data = String::with_capacity(PAGE_SIZE);
+    let mut buffer = String::with_capacity(PAGE_SIZE);
+    for i in 0..PAGE_SIZE {
+      // Write some random bytes into `data`.
+      data.push((i % 26 + 97) as u8 as char);
+      // Reset the buffer.
+      buffer.push('\0');
+    }
+    assert_eq!(PAGE_SIZE, data.len());
+    assert_eq!(PAGE_SIZE, buffer.len());
+
+    // Write the data to page on disk with specified page ID.
+    let data_write: &[u8] = data.as_bytes();
+    assert!(disk_mgr.write_page(page_id, data_write).is_ok());
+    unsafe {
+      // Reads the data from page on disk with the same page ID.
+      let data_read: &mut [u8] = buffer.as_bytes_mut();
+      assert!(disk_mgr.read_page(page_id, data_read).is_ok());
+      // Make sure that the data written and the data read match.
+      assert_eq!(data, buffer, "Data read differ from the data written");
+    }
+  }}

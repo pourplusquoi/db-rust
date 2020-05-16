@@ -2,7 +2,8 @@ use crate::buffer::lru_replacer::LRUReplacer;
 use crate::buffer::replacer::Replacer;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PageId;
-use crate::page::header_page::HeaderPage;
+use crate::disk::disk_manager::DiskManager;
+use crate::page::table_page::TablePage;
 use crate::page::page::Page;
 use std::clone::Clone;
 use std::collections::HashMap;
@@ -10,9 +11,12 @@ use std::collections::HashSet;
 use log::info;
 use log::warn;
 
+type DefaultBufferPoolManager<T> = BufferPoolManager<T, LRUReplacer<usize>>;
+
 struct BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   pool_size: usize,
   pages: Vec<T>,
+  disk_mgr: DiskManager,
   page_table: HashMap<PageId, usize>,
   replacer: R,
   free_list: HashSet<usize>,
@@ -20,16 +24,17 @@ struct BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
 impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
 
-  pub fn new(size: usize, db_file: &str) -> Self {
+  pub fn new(size: usize, db_file: &str) -> std::io::Result<Self> {
     let mut buffer_pool_mgr = BufferPoolManager {
       pool_size: size,
       pages: vec![T::new(); size],
+      disk_mgr: DiskManager::new(db_file)?,
       page_table: HashMap::new(),
       replacer: LRUReplacer::new(),
       free_list: HashSet::new(),
     };
     buffer_pool_mgr.init();
-    buffer_pool_mgr
+    Ok(buffer_pool_mgr)
   }
 
   fn init(&mut self) {
@@ -50,32 +55,9 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
       None => (),
     }
     info!("Page not found in table, need to load from disk");
-    let maybe_page = match self.free_list.iter().nth(0).map(|x| *x) {
-      Some(idx) => {
-        info!("Free page avaible, will use it");
-        self.free_list.remove(&idx);
-        let page = &mut self.pages[idx];
-        Some(page)
-      },
-      None => {
-        info!("Free page unavaible, finding replacement");
-        match self.replacer.victim() {
-          None => {
-            warn!("Replacer cannot find a victim");
-            None
-          },
-          Some(idx) => {  // The idx of victim page.
-            info!("Found victim page; idx = {}", idx);
-            let page = &self.pages[idx];
-            self.flush_page_inl(page);
-            self.page_table.remove(&page.page_id());
-            self.page_table.insert(page_id, idx);
-            let page = &mut self.pages[idx];
-            Some(page)
-          },
-        }
-      },
-    };
+    let maybe_page =
+        self.prepare_page(|| page_id, /*need_reset=*/ false)
+            .map(|(_, page)| page);
     info!("Loading the page from disk");
     // TODO: Load the page from disk.
     maybe_page
@@ -134,8 +116,11 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
   }
 
   pub fn new_page(&mut self) -> Option<(PageId, &mut T)> {
-    // TODO: Implement this.
-    None
+    self.prepare_page(|| self.disk_mgr.allocate_page(), /*need_reset=*/ true)
+        .map(|(page_id, page)| {
+          // TODO: Update new page's metadata.
+          (page_id, page)
+        })
   }
 
   fn flush_page_inl(&self, page: &T) -> bool {
@@ -145,17 +130,71 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
     }
     true
   }
+
+  fn prepare_page<F>(&mut self,
+                     page_id_supplier: F,
+                     need_reset: bool) -> Option<(PageId, &mut T)>
+      where F: FnOnce() -> PageId {
+    match self.free_list.iter().nth(0).map(|x| *x) {
+      Some(idx) => {
+        let page_id = page_id_supplier();
+        info!("Free page avaible, will use it; page_id = {}", page_id);
+        self.free_list.remove(&idx);
+        self.page_table.insert(page_id, idx);
+        let page = &mut self.pages[idx];
+        Some((page_id, page))
+      },
+      None => {
+        info!("Free page unavaible, finding replacement");
+        match self.replacer.victim() {
+          None => {
+            warn!("Replacer cannot find a victim");
+            None
+          },
+          Some(idx) => {  // The idx of victim page.
+            let page_id = page_id_supplier();
+            info!("Found victim page; page_id = {}; idx = {}", page_id, idx);
+            let page = &self.pages[idx];
+            self.flush_page_inl(page);
+            self.page_table.remove(&page.page_id());
+            self.page_table.insert(page_id, idx);
+            let page = &mut self.pages[idx];
+            Some((page_id, page))
+          },
+        }
+      },
+    }.map(|(page_id, page)| {
+      if need_reset {
+        Self::reset_page(page);
+      }
+      (page_id, page)
+    })
+  }
+
+  fn reset_page(page: &mut T) {
+    info!("Resetting page");
+    // TODO: Implement this.
+  }
 }
 
 #[cfg(test)]
 mod tests {
+  use crate::testing::file_deleter::FileDeleter;
   use super::*;
+
+  type TestingBufferPoolManager = DefaultBufferPoolManager<TablePage>;
 
   #[test]
   fn buffer_pool_manager() {
-    let mut bpm: BufferPoolManager<HeaderPage, _> =
-        BufferPoolManager::new(10, "test.db");
+    // Test file deleter with RAII.
+    let mut file_deleter = FileDeleter::new();
 
+    let file_path = "/tmp/testfile";
+    file_deleter.push(&file_path);
+    let result = TestingBufferPoolManager::new(10, file_path);
+    assert!(result.is_ok(), "Failed to create");
+
+    let mut bpm = result.unwrap();
     let maybe_page = bpm.new_page();
     assert!(maybe_page.is_some());
 
