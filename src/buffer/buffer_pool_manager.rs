@@ -95,11 +95,11 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
       return false;
     }
     match self.page_table.get(&page_id) {
+      Some(&idx) => self.flush_page_inl(&self.pages[idx]),
       None => {
         warn!("Page not found in table");
         false
       },
-      Some(&idx) => self.flush_page_inl(&self.pages[idx]),
     }
   }
 
@@ -147,10 +147,6 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
       None => {
         info!("Free page unavaible, finding replacement");
         match self.replacer.victim() {
-          None => {
-            warn!("Replacer cannot find a victim");
-            None
-          },
           Some(idx) => {  // The idx of victim page.
             let page_id = page_id_supplier();
             info!("Found victim page; page_id = {}; idx = {}", page_id, idx);
@@ -160,6 +156,10 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
             self.page_table.insert(page_id, idx);
             let page = &mut self.pages[idx];
             Some((page_id, page))
+          },
+          None => {
+            warn!("Replacer cannot find a victim");
+            None
           },
         }
       },
