@@ -56,7 +56,7 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
     }
     info!("Page not found in table, need to load from disk");
     let maybe_page =
-        self.prepare_page(|| page_id, /*need_reset=*/ false)
+        self.prepare_page(Some(page_id), /*need_reset=*/ false)
             .map(|(_, page)| page);
     info!("Loading the page from disk");
     // TODO: Load the page from disk.
@@ -118,7 +118,8 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
 
   pub fn new_page(&mut self) -> Option<(PageId, &mut T)> {
     info!("New page");
-    self.prepare_page(|| self.disk_mgr.allocate_page(), /*need_reset=*/ true)
+    let disk_mgr = &mut self.disk_mgr;
+    self.prepare_page(/*maybe_id=*/ None, /*need_reset=*/ true)
         .map(|(page_id, page)| {
           // TODO: Update new page's metadata.
           (page_id, page)
@@ -133,15 +134,21 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
     true
   }
 
-  fn prepare_page<F>(&mut self,
-                     page_id_supplier: F,
-                     need_reset: bool) -> Option<(PageId, &mut T)>
-      where F: FnOnce() -> PageId {
+  fn prepare_page(&mut self,
+                  maybe_id: Option<PageId>,
+                  need_reset: bool) -> Option<(PageId, &mut T)> {
+    let disk_mgr = &mut self.disk_mgr;
+    let allocate = || {
+      info!("Allocate page ID");
+      disk_mgr.allocate_page()
+    };
     match self.free_list.iter().nth(0).map(|x| *x) {
       Some(idx) => {
-        let page_id = page_id_supplier();
-        info!("Free page avaible, will use it; page_id = {}", page_id);
-        self.free_list.remove(&idx);
+        let page_id = maybe_id.unwrap_or_else(allocate);
+        info!("Found free page; page_id = {}; idx = {}", page_id, idx);
+        let page = &self.pages[idx];
+        self.flush_page_inl(page);
+        self.page_table.remove(&page.page_id());
         self.page_table.insert(page_id, idx);
         let page = &mut self.pages[idx];
         Some((page_id, page))
@@ -150,7 +157,7 @@ impl<T> BufferPoolManager<T, LRUReplacer<usize>> where T: Page + Clone {
         info!("Free page unavaible, finding replacement");
         match self.replacer.victim() {
           Some(idx) => {  // The idx of victim page.
-            let page_id = page_id_supplier();
+            let page_id = maybe_id.unwrap_or_else(allocate);
             info!("Found victim page; page_id = {}; idx = {}", page_id, idx);
             let page = &self.pages[idx];
             self.flush_page_inl(page);
