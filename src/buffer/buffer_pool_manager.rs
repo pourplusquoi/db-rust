@@ -13,7 +13,6 @@ use crate::page::table_page::TablePage;
 use crate::page::page::Page;
 use std::clone::Clone;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::ops::Drop;
 use log::info;
 
@@ -49,7 +48,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   fn init(&mut self) {
     for i in 0..self.data.pool_size {
-      self.data.free_list.insert(i);
+      self.data.free_list.push(i);
     }
   }
 
@@ -165,14 +164,14 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       info!("Free page unavaible, finding replacement");
       match actor.replacer.victim() {
         Some(idx) => {
-          data.free_list.insert(idx);
+          data.free_list.push(idx);
         },
         None => {
           return Err(not_found("Replacer cannot find a victim"));
         },
       }
     }
-    match data.free_list.iter().nth(0).map(|x| *x) {
+    match data.free_list.last().map(|x| *x) {
       // If flushing the old page fails, the following operations will stop
       // early, in which case, the old page remains dirty and inside
       // |data.free_list|. Will retry flushing next time when it is selected
@@ -184,7 +183,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
         // Step 2: Flush the old page to disk.
         Self::flush_page_inl(&mut actor.disk_mgr, page)?;
         // Step 3: Remove the old page from free list.
-        data.free_list.remove(&idx);
+        data.free_list.pop();
         // Step 4: Update the page ID.
         let allocate = || {
           info!("Allocate page ID");
@@ -250,7 +249,7 @@ struct Data<T> where T: Page + Clone {
   pool_size: usize,
   pages: Vec<T>,
   page_table: HashMap<PageId, usize>,
-  free_list: HashSet<usize>,
+  free_list: Vec<usize>,
 }
 
 impl<T> Data<T> where T: Page + Clone {
@@ -259,7 +258,7 @@ impl<T> Data<T> where T: Page + Clone {
       pool_size: size,
       pages: vec![T::new(); size],
       page_table: HashMap::new(),
-      free_list: HashSet::new(),
+      free_list: Vec::new(),
     }
   }
 }
