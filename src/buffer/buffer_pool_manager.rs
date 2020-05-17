@@ -15,7 +15,7 @@ use log::warn;
 pub struct BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   pool_size: usize,
   data: Data<T>,
-  reactor: Reactor<R>,  // Maybe mutable
+  Actor: Actor<R>,  // Maybe mutable
 }
 
 // The default BufferPoolManager uses LRUReplacer.
@@ -34,7 +34,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     let mut buffer_pool_mgr = BufferPoolManager {
       pool_size: size,
       data: Data::new(size),
-      reactor: Reactor::new(db_file)?,
+      Actor: Actor::new(db_file)?,
     };
     buffer_pool_mgr.init();
     Ok(buffer_pool_mgr)
@@ -58,14 +58,14 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       None => (),
     }
     info!("Page not found in table, need to load from disk");
-    let reactor = &mut self.reactor;
+    let Actor = &mut self.Actor;
     Self::prepare_page(Some(page_id),
                        /*need_reset=*/ false,
-                       reactor,
+                       Actor,
                        &mut self.data)
         .and_then(|(_, page)| {
           info!("Loading the page from disk");
-          Self::load_page_inl(&mut reactor.disk_mgr, page).map(|_| page).ok()
+          Self::load_page_inl(&mut Actor.disk_mgr, page).map(|_| page).ok()
         })
   }
 
@@ -79,7 +79,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
         if page.unpin() {
           if page.pin_count() == 0 {
             info!("Insert page to replacer; idx = {}", idx);
-            self.reactor.replacer.insert(idx);
+            self.Actor.replacer.insert(idx);
           }
           true
         } else {
@@ -98,7 +98,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       return false;
     }
     match self.data.page_table.get(&page_id) {
-      Some(&idx) => Self::flush_page_inl(&mut self.reactor.disk_mgr,
+      Some(&idx) => Self::flush_page_inl(&mut self.Actor.disk_mgr,
                                          &mut self.data.pages[idx]).is_ok(),
       None => false,  // Page not found in table.
     }
@@ -107,7 +107,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   pub fn flush_all_pages(&mut self) {
     for (page_id, &idx) in self.data.page_table.iter() {
       info!("Flush page; page_id = {}", page_id);
-      Self::flush_page_inl(&mut self.reactor.disk_mgr,
+      Self::flush_page_inl(&mut self.Actor.disk_mgr,
                            &mut self.data.pages[idx]);
     }
   }
@@ -123,7 +123,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     info!("New page");
     Self::prepare_page(/*maybe_id=*/ None,
                        /*need_reset=*/ true,
-                       &mut self.reactor,
+                       &mut self.Actor,
                        &mut self.data)
         .map(|(page_id, page)| {
           // TODO: Update new page's metadata.
@@ -134,15 +134,15 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   fn prepare_page<'a>(
       maybe_id: Option<PageId>,
       need_reset: bool,
-      reactor: &mut Reactor<R>,
+      Actor: &mut Actor<R>,
       data: &'a mut Data<T>) -> Option<(PageId, &'a mut T)> {
     match data.free_list.iter().nth(0).map(|x| *x) {
-      Some(idx) => Self::page_with_idx(idx, maybe_id, reactor, data),
+      Some(idx) => Self::page_with_idx(idx, maybe_id, Actor, data),
       None => {
         info!("Free page unavaible, finding replacement");
-        match reactor.replacer.victim() {
+        match Actor.replacer.victim() {
           // The idx of victim page.
-          Some(idx) => Self::page_with_idx(idx, maybe_id, reactor, data),
+          Some(idx) => Self::page_with_idx(idx, maybe_id, Actor, data),
           None => None,  // Replacer cannot find a victim.
         }
       },
@@ -157,17 +157,17 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   fn page_with_idx<'a>(
       idx: usize,
       maybe_id: Option<PageId>,
-      rector: &mut Reactor<R>,
+      actor: &mut Actor<R>,
       data: &'a mut Data<T>) -> Option<(PageId, &'a mut T)> {
     let allocate = || {
       info!("Allocate page ID");
-      rector.disk_mgr.allocate_page()
+      actor.disk_mgr.allocate_page()
     };
     let page_id = maybe_id.unwrap_or_else(allocate);
     info!("Found free page; page_id = {}; idx = {}", page_id, idx);
     let page = &mut data.pages[idx];
     // Flush the old page to disk.
-    Self::flush_page_inl(&mut rector.disk_mgr, page);
+    Self::flush_page_inl(&mut actor.disk_mgr, page);
     // Update the page table.
     data.page_table.remove(&page.page_id());
     data.page_table.insert(page_id, idx);
@@ -180,7 +180,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
                     page: &mut T) -> std::io::Result<()> {
     if page.is_dirty() {
       info!("Page is dirty, will write it to disk");
-      disk_mgr.write_page(page.page_id(), page.borrow())?;
+      disk_mgr.write_page(page.page_id(), page.data())?;
       page.set_is_dirty(false);
     }
     Ok(())
@@ -189,13 +189,13 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   fn load_page_inl(disk_mgr: &mut DiskManager,
                    page: &mut T) -> std::io::Result<()> {
     page.set_is_dirty(false);
-    disk_mgr.read_page(page.page_id(), page.borrow_mut())?;
+    disk_mgr.read_page(page.page_id(), page.data_mut())?;
     Ok(())
   }
 
   fn reset_page(page: &mut T) {
     info!("Reset page");
-    for byte in page.borrow_mut().iter_mut() {
+    for byte in page.data_mut().iter_mut() {
       *byte = 0;
     }
   }
@@ -217,18 +217,18 @@ impl<T> Data<T> where T: Page + Clone {
   }
 }
 
-struct Reactor<R> where R: Replacer<usize> {
+struct Actor<R> where R: Replacer<usize> {
   replacer: R,
   disk_mgr: DiskManager,
 }
 
-impl<R> Reactor<R> where R: Replacer<usize> {
+impl<R> Actor<R> where R: Replacer<usize> {
   pub fn new(db_file: &str) -> std::io::Result<Self> {
-    let rector = Reactor {
+    let actor = Actor {
       replacer: R::new(),
       disk_mgr: DiskManager::new(db_file)?,
     };
-    Ok(rector)
+    Ok(actor)
   }
 }
 
@@ -256,6 +256,6 @@ mod tests {
     let (page_id, page) = maybe_page.unwrap();
     assert_eq!(0, page_id);
 
-    let data = page.borrow_mut();
+    let data = page.data_mut();
   }
 }

@@ -33,11 +33,11 @@ impl Page for TablePage {
     }
   }
 
-  fn borrow(&self) -> &[u8; PAGE_SIZE] {
+  fn data(&self) -> &[u8; PAGE_SIZE] {
     &self.data
   }
 
-  fn borrow_mut(&mut self) -> &mut [u8; PAGE_SIZE] {
+  fn data_mut(&mut self) -> &mut [u8; PAGE_SIZE] {
     &mut self.data
   }
 
