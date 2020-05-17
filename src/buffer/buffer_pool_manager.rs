@@ -1,3 +1,7 @@
+// Functionality: The simplified Buffer Manager interface allows a client to
+// new/delete pages on disk, to read a disk page into the buffer pool and pin
+// it, also to unpin a page in the buffer pool.
+
 use crate::buffer::lru_replacer::LRUReplacer;
 use crate::buffer::replacer::Replacer;
 use crate::common::config::INVALID_PAGE_ID;

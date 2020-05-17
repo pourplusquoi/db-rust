@@ -1,6 +1,22 @@
+// Slotted page format:
+//  ---------------------------------------
+// | HEADER | ... FREE SPACES ... | TUPLES |
+//  ---------------------------------------
+//                                 ^
+//                         free space pointer
+//
+//  Header format (size in byte):
+//  ---------------------------------------------------------------------
+// | PageId (4) | PrevPageId (4) | NextPageId (4) | FreeSpacePointer (4) |
+//  ---------------------------------------------------------------------
+//  --------------------------------------------------------------
+// | TupleCount (4) | Tuple_1 offset (4) | Tuple_1 size (4) | ... |
+//  --------------------------------------------------------------
+
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
+use crate::common::newable::Newable;
 use crate::page::page::Page;
 use std::clone::Clone;
 
@@ -23,7 +39,7 @@ impl Clone for TablePage {
   }
 }
 
-impl Page for TablePage {
+impl Newable for TablePage {
   fn new() -> Self {
     TablePage {
       data: [0 as u8; PAGE_SIZE],
@@ -32,7 +48,9 @@ impl Page for TablePage {
       is_dirty: false,
     }
   }
+}
 
+impl Page for TablePage {
   fn data(&self) -> &[u8; PAGE_SIZE] {
     &self.data
   }

@@ -1,6 +1,16 @@
+// Database use the first page (page_id = 0) as header page to store metadata, in
+// our case, we will contain information about table/index name (length less than
+// 32 bytes) and their corresponding root_id
+//
+// Format (size in byte):
+//  -----------------------------------------------------------------
+// | RecordCount (4) | Entry_1 name (32) | Entry_1 root_id (4) | ... |
+//  -----------------------------------------------------------------
+
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
+use crate::common::newable::Newable;
 use crate::page::page::Page;
 use std::clone::Clone;
 
@@ -23,7 +33,7 @@ impl Clone for HeaderPage {
   }
 }
 
-impl Page for HeaderPage {
+impl Newable for HeaderPage {
   fn new() -> Self {
     HeaderPage {
       data: [0 as u8; PAGE_SIZE],
@@ -32,7 +42,9 @@ impl Page for HeaderPage {
       is_dirty: false,
     }
   }
+}
 
+impl Page for HeaderPage {
   fn data(&self) -> &[u8; PAGE_SIZE] {
     &self.data
   }

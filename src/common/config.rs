@@ -1,3 +1,5 @@
+// Database system configuration.
+
 use std::sync::atomic::AtomicI32;
 
 pub const INVALID_PAGE_ID: i32 = -1;         // representing an invalid page id

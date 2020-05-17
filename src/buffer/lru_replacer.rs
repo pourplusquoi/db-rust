@@ -1,4 +1,8 @@
+// Functionality: The buffer pool manager must maintain a LRU list to collect
+// all the pages that are unpinned and ready to be swapped.
+
 use crate::buffer::replacer::Replacer;
+use crate::common::newable::Newable;
 use std::clone::Clone;
 use std::cmp::Eq;
 use std::collections::BTreeMap;
@@ -11,9 +15,7 @@ pub struct LRUReplacer<T> where T: Clone + Eq + Hash {
   clock: u32,
 }
 
-impl<T> Replacer<T> for LRUReplacer<T>
-    where T: Clone + Eq + Hash {
-
+impl<T> Newable for LRUReplacer<T> where T: Clone + Eq + Hash {
   fn new() -> Self {
     LRUReplacer {
       forward: HashMap::new(),
@@ -21,7 +23,9 @@ impl<T> Replacer<T> for LRUReplacer<T>
       clock: 0,
     }
   }
+}
 
+impl<T> Replacer<T> for LRUReplacer<T> where T: Clone + Eq + Hash {
   fn insert(&mut self, val: T) {
     match self.forward.get(&val) {
       None => (),

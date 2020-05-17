@@ -1,3 +1,8 @@
+// Disk manager takes care of the allocation and deallocation of pages within a
+// database. It also performs read and write of pages to and from disk, and
+// provides a logical file layer within the context of a database management
+// system.
+
 use crate::common::config::AtomicPageId;
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;

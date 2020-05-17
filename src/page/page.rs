@@ -1,8 +1,14 @@
+// Trait for page. All page classes need to implement these methods.
+//
+// Wrapper around actual data page in main memory and also contains bookkeeping
+// information used by buffer pool manager like pin_count/dirty_flag/page_id.
+// Use page as a basic unit within the database system.
+
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
+use crate::common::newable::Newable;
 
-pub trait Page {
-  fn new() -> Self;
+pub trait Page : Newable {
   fn data(&self) -> &[u8; PAGE_SIZE];
   fn data_mut(&mut self) -> &mut [u8; PAGE_SIZE];
   fn page_id(&self) -> PageId;
