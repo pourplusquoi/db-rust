@@ -14,7 +14,7 @@ use log::warn;
 
 pub struct BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   data: Data<T>,
-  actor: Actor<R>,  // Maybe mutable
+  actor: Actor<R>,  // Maybe mutable.
 }
 
 // The default BufferPoolManager uses LRUReplacer.
@@ -44,6 +44,8 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     }
   }
 
+  // Fetches the page with specified |page_id|. Pins the page if it already
+  // exists in |self.data.page_table|; otherwise, loads the page from disk.
   pub fn fetch_page(&mut self, page_id: PageId) -> Option<&mut T> {
     info!("Fetch page; page_id = {}", page_id);
     match self.data.page_table.get(&page_id) {
@@ -67,6 +69,8 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
         })
   }
 
+  // Unpins the page with specified |page_id|. |is_dirty| sets the dirty flag
+  // of this page. Returns |false| if the page pin count <= 0.
   pub fn unpin_page(&mut self, page_id: PageId, is_dirty: bool) -> bool {
     info!("Unpin page; page_id = {}", page_id);
     match self.data.page_table.get(&page_id) {
@@ -89,6 +93,8 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     }
   }
 
+  // Flushes one page with specified |page_id| to disk. Returns |false| if no
+  // such page exists in |self.data.page_table|.
   pub fn flush_page(&mut self, page_id: PageId) -> bool {
     info!("Flush page; page_id = {}", page_id);
     if page_id == INVALID_PAGE_ID {
@@ -102,6 +108,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     }
   }
 
+  // Flushes if dirty all pages (i.e. |self.data.pages|) to disk.
   pub fn flush_all_pages(&mut self) {
     for (page_id, &idx) in self.data.page_table.iter() {
       info!("Flush page; page_id = {}", page_id);
@@ -110,13 +117,17 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     }
   }
 
+  // Deletes a page. User should call this method for deleting a page. This
+  // routine will call |self.actor.disk_mgr| to deallocate the page.
   pub fn delete_page(&self, page_id: PageId) -> bool {
     info!("Delete page; page_id = {}", page_id);
-    // TODO: Implement this. (Need to reset pin_count & is_dirty!)?
-    // If the page is found within page table, but pin_count != 0, return false.
+    // TODO: Implement this. (Need to reset pin_count & is_dirty!)?  If the
+    // page is found within page table, but pin_count != 0, return false.
     false
   }
 
+  // Creates a new page. User should call this method if one needs to create a
+  // new page. This routine will call |self.actor.disk_mgr| to allocate a page.
   pub fn new_page(&mut self) -> Option<(PageId, &mut T)> {
     info!("New page");
     Self::prepare_page(/*maybe_id=*/ None,
@@ -129,6 +140,9 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
         })
   }
 
+  // Prepares a new page and returns a (PageId, Page) pair. If |maybe_id| is
+  // None, asks |actor.disk_mgr| to allocate a new page ID. If |need_reset| is
+  // |true|, resets the page with 0's.
   fn prepare_page<'a>(
       maybe_id: Option<PageId>,
       need_reset: bool,
@@ -152,6 +166,10 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     })
   }
 
+  // Continues to prepare the new page where the free page has been located,
+  // and returns a (PageId, Page) pair. |idx| is the index of the free page in
+  // |data.pages|. If |maybe_id| is None, asks |actor.disk_mgr| to allocate a
+  // new page ID.
   fn page_with_idx<'a>(
       idx: usize,
       maybe_id: Option<PageId>,
@@ -174,6 +192,10 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     Some((page_id, page))
   }
 
+  // Flushes the specified page to disk manager iff the page is dirty, and
+  // |page.data()| stores the data being written to disk.
+  //
+  // Note: If the page is not dirty, calling this is a no-op.
   fn flush_page_inl(disk_mgr: &mut DiskManager,
                     page: &mut T) -> std::io::Result<()> {
     if page.is_dirty() {
@@ -184,6 +206,8 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     Ok(())
   }
 
+  // Loads the specified page from disk manager, and |page.data_mut()| is the
+  // place where the data being read will be stored.
   fn load_page_inl(disk_mgr: &mut DiskManager,
                    page: &mut T) -> std::io::Result<()> {
     page.set_is_dirty(false);
@@ -191,6 +215,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     Ok(())
   }
 
+  // Resets the specified page by writing 0's to its content.
   fn reset_page(page: &mut T) {
     info!("Reset page");
     for byte in page.data_mut().iter_mut() {
