@@ -66,7 +66,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     Self::prepare_page(Some(page_id),
                        /*need_reset=*/ false,
                        actor, data)
-        .and_then(|(_, page)| {
+        .and_then(|page| {
           info!("Loading the page from disk");
           Self::load_page_inl(&mut actor.disk_mgr, page).map(|_| page)
         })
@@ -110,14 +110,16 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     }
   }
 
-  // Flushes if dirty all pages (i.e. |self.data.pages|) to disk.
+  // Flushes if dirty all pages (i.e. |self.data.pages|) to disk. Finishes
+  // flushing all pages regardless of I/O errors. Returns the first error
+  // encountered.
   pub fn flush_all_pages(&mut self) -> std::io::Result<()> {
     let mut result = Ok(());
     for (page_id, &idx) in self.data.page_table.iter() {
       info!("Flush page; page_id = {}", page_id);
-      let flush_result = Self::flush_page_inl(&mut self.actor.disk_mgr,
-                                              &mut self.data.pages[idx]);
-      result = result.and(flush_result);
+      let res = Self::flush_page_inl(&mut self.actor.disk_mgr,
+                                     &mut self.data.pages[idx]);
+      result = result.and(res);
     }
     result
   }
@@ -133,15 +135,15 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   // Creates a new page. User should call this method if one needs to create a
   // new page. This routine will call |self.actor.disk_mgr| to allocate a page.
-  pub fn new_page(&mut self) -> std::io::Result<(PageId, &mut T)> {
+  pub fn new_page(&mut self) -> std::io::Result<&mut T> {
     info!("New page");
     Self::prepare_page(/*maybe_id=*/ None,
                        /*need_reset=*/ true,
                        &mut self.actor,
                        &mut self.data)
-        .map(|(page_id, page)| {
+        .map(|page| {
           // TODO: Update new page's metadata.
-          (page_id, page)
+          page
         })
   }
 
@@ -152,72 +154,81 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       maybe_id: Option<PageId>,
       need_reset: bool,
       actor: &mut Actor<R>,
-      data: &'a mut Data<T>) -> std::io::Result<(PageId, &'a mut T)> {
+      data: &'a mut Data<T>) -> std::io::Result<&'a mut T> {
+    if data.free_list.is_empty() {
+      info!("Free page unavaible, finding replacement");
+      match actor.replacer.victim() {
+        Some(idx) => {
+          data.free_list.insert(idx);
+        },
+        None => {
+          return Err(not_found("Replacer cannot find a victim"));
+        },
+      }
+    }
     match data.free_list.iter().nth(0).map(|x| *x) {
-      Some(idx) => Self::page_with_idx(idx, maybe_id, actor, data),
-      None => {
-        info!("Free page unavaible, finding replacement");
-        match actor.replacer.victim() {
-          // The idx of victim page.
-          Some(idx) => Self::page_with_idx(idx, maybe_id, actor, data),
-          None => Err(not_found("Replacer cannot find a victim"))
-        }
+      // If flushing the old page fails, the following operations will stop
+      // early, in which case, the old page remains dirty and inside
+      // |data.free_list|. Will retry flushing next time when it is selected
+      // for accommodation for a new page.
+      Some(idx) => {
+        // Step 1: Remove the old page from page table if exists.
+        let page = &mut data.pages[idx];
+        data.page_table.remove(&page.page_id());
+        // Step 2: Flush the old page to disk.
+        Self::flush_page_inl(&mut actor.disk_mgr, page)?;
+        // Step 3: Remove the old page from free list.
+        data.free_list.remove(&idx);
+        // Step 4: Update the page ID.
+        let allocate = || {
+          info!("Allocate page ID");
+          actor.disk_mgr.allocate_page()
+        };
+        page.set_page_id(maybe_id.unwrap_or_else(allocate));
+        // Step 5: Insert the new page ID into page table.
+        data.page_table.insert(page.page_id(), idx);
+        Ok(page)
       },
-    }.map(|(page_id, page)| {
+      None => Err(invalid_data("Should not reach here")),
+    }.map(|page| {
       if need_reset {
         Self::reset_page(page);
       }
-      (page_id, page)
+      page
     })
   }
 
-  // Continues to prepare the new page where the free page has been located,
-  // and returns a (PageId, Page) pair. |idx| is the index of the free page in
-  // |data.pages|. If |maybe_id| is None, asks |actor.disk_mgr| to allocate a
-  // new page ID.
-  fn page_with_idx<'a>(
-      idx: usize,
-      maybe_id: Option<PageId>,
-      actor: &mut Actor<R>,
-      data: &'a mut Data<T>) -> std::io::Result<(PageId, &'a mut T)> {
-    let page = &mut data.pages[idx];
-    // Flush the old page to disk.
-    Self::flush_page_inl(&mut actor.disk_mgr, page)?;
-    // Get the page ID.
-    let allocate = || {
-      info!("Allocate page ID");
-      actor.disk_mgr.allocate_page()
-    };
-    let page_id = maybe_id.unwrap_or_else(allocate);
-    // Update the page table.
-    data.page_table.remove(&page.page_id());
-    data.page_table.insert(page_id, idx);
-    // Update the page ID.
-    page.set_page_id(page_id);
-    Ok((page_id, page))
-  }
-
-  // Flushes the specified page to disk manager iff the page is dirty, and
-  // |page.data()| stores the data being written to disk.
+  // Flushes the specified page to disk manager iff the page is dirty, resets
+  // the dirty flag. |page.data()| stores the data being written to disk.
   //
   // Note: If the page is not dirty, calling this is a no-op.
   fn flush_page_inl(disk_mgr: &mut DiskManager,
                     page: &mut T) -> std::io::Result<()> {
-    if page.is_dirty() {
-      info!("Page is dirty, will write it to disk");
-      disk_mgr.write_page(page.page_id(), page.data())?;
-      page.set_is_dirty(false);
+    match page.is_dirty() {
+      true => {
+        info!("Page is dirty, flushiung to disk");
+        disk_mgr.write_page(page.page_id(), page.data())?;
+        page.set_is_dirty(false);
+      },
+      false => { info!("Page is not dirty, skipping"); }
     }
     Ok(())
   }
 
-  // Loads the specified page from disk manager, and |page.data_mut()| is the
-  // place where the data being read will be stored.
+  // Loads the specified page from disk manager. |page.data_mut()| is the place
+  // where the data being read will be stored.
+  //
+  // Note: It is not allowed to load page when the current page is dirty.
   fn load_page_inl(disk_mgr: &mut DiskManager,
                    page: &mut T) -> std::io::Result<()> {
-    page.set_is_dirty(false);
-    disk_mgr.read_page(page.page_id(), page.data_mut())?;
-    Ok(())
+    match page.is_dirty() {
+      true => Err(invalid_data("Cannot load while current page is dirty")),
+      false => {
+        info!("Loading page from disk");
+        disk_mgr.read_page(page.page_id(), page.data_mut())?;
+        Ok(())
+      },
+    }
   }
 
   // Resets the specified page by writing 0's to its content.
@@ -295,9 +306,9 @@ mod tests {
     let maybe_page = bpm.new_page();
     assert!(maybe_page.is_ok());
 
-    let (page_id, page) = maybe_page.unwrap();
-    assert_eq!(0, page_id);
+    let page = maybe_page.unwrap();
+    assert_eq!(0, page.page_id());
 
-    let data = page.data_mut();
+    let _data = page.data_mut();
   }
 }
