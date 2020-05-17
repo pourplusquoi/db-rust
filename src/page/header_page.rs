@@ -12,6 +12,7 @@ use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
 use crate::common::newable::Newable;
 use crate::page::page::Page;
+use crate::page::reinterpret;
 use std::clone::Clone;
 
 #[allow(dead_code)]
@@ -20,6 +21,34 @@ pub struct HeaderPage {
   page_id: PageId,
   pin_count: i32,
   is_dirty: bool,
+}
+
+impl HeaderPage {
+  pub fn init(&mut self) {
+    self.set_record_count(0);
+  }
+
+  pub fn insert_record(&self, name: &str, root_id: PageId) {}
+
+  pub fn delete_record(&self, name: &str, root_id: PageId) {}
+
+  pub fn update_record(&self, name: &str, root_id: PageId) {}
+
+  pub fn get_root_id(&self, name: &str) -> PageId {0}
+
+  pub fn get_record_count(&self) -> i32 {
+    unsafe {
+      reinterpret::as_i32(self.data())
+    }
+  }
+
+  fn find_record(&self, name: &str) {}
+
+  fn set_record_count(&mut self, record_count: i32) {
+    unsafe {
+      *reinterpret::as_i32_mut(self.data_mut()) = record_count;
+    }
+  }
 }
 
 impl Clone for HeaderPage {
@@ -76,4 +105,8 @@ impl Page for HeaderPage {
   fn is_dirty_mut(&mut self) -> &mut bool {
     &mut self.is_dirty
   }
+}
+
+#[cfg(test)]
+mod tests {
 }
