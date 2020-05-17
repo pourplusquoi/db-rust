@@ -6,6 +6,7 @@ use crate::buffer::lru_replacer::LRUReplacer;
 use crate::buffer::replacer::Replacer;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PageId;
+use crate::common::error::*;
 use crate::disk::disk_manager::DiskManager;
 use crate::logging::error_logging::ErrorLogging;
 use crate::page::table_page::TablePage;
@@ -13,8 +14,6 @@ use crate::page::page::Page;
 use std::clone::Clone;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::io::Error;
-use std::io::ErrorKind;
 use std::ops::Drop;
 use log::info;
 
@@ -278,18 +277,6 @@ impl<R> Actor<R> where R: Replacer<usize> {
     };
     Ok(actor)
   }
-}
-
-fn invalid_data(message: &str) -> Error {
-  Error::new(ErrorKind::InvalidData, message)
-}
-
-fn invalid_input(message: &str) -> Error {
-  Error::new(ErrorKind::InvalidInput, message)
-}
-
-fn not_found(message: &str) -> Error {
-  Error::new(ErrorKind::NotFound, message)
 }
 
 #[cfg(test)]

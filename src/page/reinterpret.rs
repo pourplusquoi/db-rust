@@ -1,3 +1,11 @@
+pub unsafe fn read_u32(data: &[u8]) -> u32 {
+  *(&data[0..4] as *const [u8] as *const u32)
+}
+
+pub unsafe fn write_u32(data: &mut [u8], num: u32) {
+  *(&mut data[0..4] as *mut [u8] as *mut u32) = num;
+}
+
 pub unsafe fn read_i32(data: &[u8]) -> i32 {
   *(&data[0..4] as *const [u8] as *const i32)
 }
@@ -29,6 +37,23 @@ pub unsafe fn write_str(data: &mut [u8], name: &str) {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn read_write_u32() {
+    let mut data = [0; 8];
+    unsafe {
+      assert_eq!(0, read_u32(&data));
+      assert_eq!(0, read_u32(&data[4..]));
+
+      write_u32(&mut data, 19260817);
+      assert_eq!(19260817, read_u32(&data));
+      assert_eq!(0, read_u32(&data[4..]));
+
+      write_u32(&mut data[4..], 20200517);
+      assert_eq!(19260817, read_u32(&data));
+      assert_eq!(20200517, read_u32(&data[4..]));
+    }
+  }
 
   #[test]
   fn read_write_i32() {
@@ -69,19 +94,21 @@ mod tests {
   fn read_write_mixed() {
     let mut data = [0; 4 + (32 + 4) + (32 + 4) + (32 + 4)];
     unsafe {
-      write_i32(&mut data[0..], 3);
+      write_u32(&mut data[0..], 3);
       write_str(&mut data[4..], "Table A");
       write_i32(&mut data[36..], 19260817);
       write_str(&mut data[40..], "Table B");
       write_i32(&mut data[72..], 20200517);
       write_str(&mut data[76..], "Table C");
+      write_i32(&mut data[108..], -1);
 
-      assert_eq!(3, read_i32(&data[0..]));
+      assert_eq!(3, read_u32(&data[0..]));
       assert_eq!("Table A", read_str(&data[4..]));
       assert_eq!(19260817, read_i32(&data[36..]));
       assert_eq!("Table B", read_str(&data[40..]));
       assert_eq!(20200517, read_i32(&data[72..]));
       assert_eq!("Table C", read_str(&data[76..]));
+      assert_eq!(-1, read_i32(&data[108..]));
     }
   }
 }
