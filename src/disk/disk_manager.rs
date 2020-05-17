@@ -11,6 +11,11 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 
+// TODO: Right now, DiskManager does not support creating directories, i.e.
+// the |db_file| being passed to |DiskManager::new| has to be under an existing
+// directory. However, it might not be the DiskManager's responsibility to
+// create directories.
+
 pub struct DiskManager {
   db_io: File,
   next_page_id: AtomicPageId,
