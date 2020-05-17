@@ -6,6 +6,14 @@ pub unsafe fn write_u32(data: &mut [u8], num: u32) {
   *(&mut data[0..4] as *mut [u8] as *mut u32) = num;
 }
 
+pub unsafe fn read_u64(data: &[u8]) -> u64 {
+  *(&data[0..8] as *const [u8] as *const u64)
+}
+
+pub unsafe fn write_u64(data: &mut [u8], num: u64) {
+  *(&mut data[0..8] as *mut [u8] as *mut u64) = num;
+}
+
 pub unsafe fn read_i32(data: &[u8]) -> i32 {
   *(&data[0..4] as *const [u8] as *const i32)
 }
@@ -92,23 +100,25 @@ mod tests {
 
   #[test]
   fn read_write_mixed() {
-    let mut data = [0; 4 + (32 + 4) + (32 + 4) + (32 + 4)];
+    let mut data = [0; 12 + (32 + 4) + (32 + 4) + (32 + 4)];
     unsafe {
-      write_u32(&mut data[0..], 3);
-      write_str(&mut data[4..], "Table A");
-      write_i32(&mut data[36..], 19260817);
-      write_str(&mut data[40..], "Table B");
-      write_i32(&mut data[72..], 20200517);
-      write_str(&mut data[76..], "Table C");
-      write_i32(&mut data[108..], -1);
+      write_u64(&mut data[0..], 18042398900264319379);
+      write_u32(&mut data[8..], 3);
+      write_str(&mut data[12..], "Table A");
+      write_i32(&mut data[44..], 19260817);
+      write_str(&mut data[48..], "Table B");
+      write_i32(&mut data[80..], 20200517);
+      write_str(&mut data[84..], "Table C");
+      write_i32(&mut data[116..], -1);
 
-      assert_eq!(3, read_u32(&data[0..]));
-      assert_eq!("Table A", read_str(&data[4..]));
-      assert_eq!(19260817, read_i32(&data[36..]));
-      assert_eq!("Table B", read_str(&data[40..]));
-      assert_eq!(20200517, read_i32(&data[72..]));
-      assert_eq!("Table C", read_str(&data[76..]));
-      assert_eq!(-1, read_i32(&data[108..]));
+      assert_eq!(18042398900264319379, read_u64(&data[0..]));
+      assert_eq!(3, read_u32(&data[8..]));
+      assert_eq!("Table A", read_str(&data[12..]));
+      assert_eq!(19260817, read_i32(&data[44..]));
+      assert_eq!("Table B", read_str(&data[48..]));
+      assert_eq!(20200517, read_i32(&data[80..]));
+      assert_eq!("Table C", read_str(&data[84..]));
+      assert_eq!(-1, read_i32(&data[116..]));
     }
   }
 }

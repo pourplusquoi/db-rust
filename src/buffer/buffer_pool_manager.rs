@@ -212,7 +212,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     match page.is_dirty() {
       true => {
         info!("Page is dirty, flushiung to disk");
-        disk_mgr.write_page(page.page_id(), page.data())?;
+        disk_mgr.write_page(page.page_id(), page.data_mut())?;
         page.set_is_dirty(false);
       },
       false => { info!("Page is not dirty, skipping"); }

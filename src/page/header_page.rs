@@ -3,17 +3,17 @@
 // 32 bytes) and their corresponding root_id
 //
 // Format (size in byte):
-//  -----------------------------------------------------------------
-// | RecordCount (4) | Entry_1 name (32) | Entry_1 root_id (4) | ... |
-//  -----------------------------------------------------------------
+//  --------------------------------------------------------------------------------
+// | Checksum (8) | RecordCount (4) | Entry_1 name (32) | Entry_1 root_id (4) | ... |
+//  --------------------------------------------------------------------------------
 
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
 use crate::common::error::*;
 use crate::common::newable::Newable;
+use crate::common::reinterpret;
 use crate::page::page::Page;
-use crate::page::reinterpret;
 use std::clone::Clone;
 
 #[allow(dead_code)]
@@ -36,7 +36,7 @@ impl HeaderPage {
       return Err(already_exists(&format!("Record exists; name = {}", name)));
     }
     let count = self.get_record_count();
-    let offset = 4 + count * 36;
+    let offset = 12 + count * 36;
     unsafe {
       reinterpret::write_str(&mut self.data_mut()[offset..], name);
       reinterpret::write_i32(&mut self.data_mut()[(offset + 32)..], root_id);
@@ -49,7 +49,7 @@ impl HeaderPage {
     Self::validate_name(name)?;
     let idx = self.find_record(name)?;
     let count = self.get_record_count();
-    let offset = 4 + idx * 36;
+    let offset = 12 + idx * 36;
     let n = (count - idx - 1) * 36;
     unsafe {
       let ptr = self.data_mut().as_mut_ptr().add(offset);
@@ -65,7 +65,7 @@ impl HeaderPage {
                        root_id: PageId) -> std::io::Result<()> {
     Self::validate_name(name)?;
     let idx = self.find_record(name)?;
-    let offset = 4 + idx * 36;
+    let offset = 12 + idx * 36;
     unsafe {
       reinterpret::write_i32(&mut self.data_mut()[(offset + 32)..], root_id);
     }
@@ -75,7 +75,7 @@ impl HeaderPage {
   pub fn get_root_id(&self, name: &str) -> std::io::Result<i32> {
     Self::validate_name(name)?;
     let idx = self.find_record(name)?;
-    let offset = (idx + 1) * 36;
+    let offset = 8 + (idx + 1) * 36;
     let root_id = unsafe {
       reinterpret::read_i32(&self.data[offset..])
     };
@@ -90,8 +90,9 @@ impl HeaderPage {
 
   fn find_record(&self, name: &str) -> std::io::Result<usize> {
     for i in 0..self.get_record_count() {
+      let offset = 12 + i * 36;
       unsafe {
-        let raw_name = reinterpret::read_str(&self.data()[(4 + i * 36)..]);
+        let raw_name = reinterpret::read_str(&self.data()[offset..]);
         if raw_name == name {
           return Ok(i);
         }
