@@ -24,15 +24,14 @@ pub struct DiskManager {
 impl DiskManager {
 
   pub fn new(db_file: &str) -> std::io::Result<Self> {
-    let disk_mgr = DiskManager {
+    Ok(DiskManager {
       db_io: OpenOptions::new()
           .read(true)
           .write(true)
           .create(true)
           .open(db_file)?,
       next_page_id: AtomicPageId::new(0),
-    };
-    Ok(disk_mgr)
+    })
   }
 
   // Writes data to page with the specified page ID on disk.

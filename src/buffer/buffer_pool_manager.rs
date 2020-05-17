@@ -9,9 +9,10 @@ use crate::page::page::Page;
 use std::clone::Clone;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::io::Error;
+use std::io::ErrorKind;
 use std::ops::Drop;
 use log::info;
-use log::warn;
 
 pub struct BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   data: Data<T>,
@@ -31,12 +32,13 @@ impl<T, R> Drop for BufferPoolManager<T, R>
 impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   pub fn new(size: usize, db_file: &str) -> std::io::Result<Self> {
-    let mut buffer_pool_mgr = BufferPoolManager {
+    Ok(BufferPoolManager {
       data: Data::new(size),
       actor: Actor::new(db_file)?,
-    };
-    buffer_pool_mgr.init();
-    Ok(buffer_pool_mgr)
+    }).and_then(|mut buffer_pool_mgr| {
+      buffer_pool_mgr.init();
+      Ok(buffer_pool_mgr)
+    })
   }
 
   fn init(&mut self) {
@@ -47,14 +49,14 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   // Fetches the page with specified |page_id|. Pins the page if it already
   // exists in |self.data.page_table|; otherwise, loads the page from disk.
-  pub fn fetch_page(&mut self, page_id: PageId) -> Option<&mut T> {
+  pub fn fetch_page(&mut self, page_id: PageId) -> std::io::Result<&mut T> {
     info!("Fetch page; page_id = {}", page_id);
     match self.data.page_table.get(&page_id) {
       Some(&idx) => {
         info!("Found page in table, will pin the page; idx = {}", idx);
         let page = &mut self.data.pages[idx];
         page.pin();
-        return Some(page);
+        return Ok(page);
       },
       None => (),
     }
@@ -66,15 +68,13 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
                        actor, data)
         .and_then(|(_, page)| {
           info!("Loading the page from disk");
-          Self::load_page_inl(&mut actor.disk_mgr, page)
-              .map(|_| page)
-              .log_and_ok()
+          Self::load_page_inl(&mut actor.disk_mgr, page).map(|_| page)
         })
   }
 
   // Unpins the page with specified |page_id|. |is_dirty| sets the dirty flag
   // of this page. Returns |false| if the page pin count <= 0.
-  pub fn unpin_page(&mut self, page_id: PageId, is_dirty: bool) -> bool {
+  pub fn unpin_page(&mut self, page_id: PageId, is_dirty: bool) -> std::io::Result<()> {
     info!("Unpin page; page_id = {}", page_id);
     match self.data.page_table.get(&page_id) {
       Some(&idx) => {
@@ -86,29 +86,27 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
             info!("Insert page to replacer; idx = {}", idx);
             self.actor.replacer.insert(idx);
           }
-          true
+          Ok(())
         } else {
-          warn!("Pin count <= 0, cannot be unpinned");
-          false
+          Err(invalid_data("Pin count <= 0, cannot be unpinned"))
         }
       },
-      None => false,  // Page not found in table.
+      None => Err(not_found("Page not found in table")),
     }
   }
 
   // Flushes one page with specified |page_id| to disk. Returns |false| if no
   // such page exists in |self.data.page_table|.
-  pub fn flush_page(&mut self, page_id: PageId) -> bool {
+  pub fn flush_page(&mut self, page_id: PageId) -> std::io::Result<()> {
     info!("Flush page; page_id = {}", page_id);
     if page_id == INVALID_PAGE_ID {
-      warn!("Page ID is invalid");
-      return false;
+      return Err(invalid_input("Page ID is invalid"));
     }
     match self.data.page_table.get(&page_id) {
       Some(&idx) =>
           Self::flush_page_inl(&mut self.actor.disk_mgr,
-                               &mut self.data.pages[idx]).log_and_is_ok(),
-      None => false,  // Page not found in table.
+                               &mut self.data.pages[idx]),
+      None => Err(not_found("Page not found in table")),
     }
   }
 
@@ -135,7 +133,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   // Creates a new page. User should call this method if one needs to create a
   // new page. This routine will call |self.actor.disk_mgr| to allocate a page.
-  pub fn new_page(&mut self) -> Option<(PageId, &mut T)> {
+  pub fn new_page(&mut self) -> std::io::Result<(PageId, &mut T)> {
     info!("New page");
     Self::prepare_page(/*maybe_id=*/ None,
                        /*need_reset=*/ true,
@@ -154,17 +152,15 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       maybe_id: Option<PageId>,
       need_reset: bool,
       actor: &mut Actor<R>,
-      data: &'a mut Data<T>) -> Option<(PageId, &'a mut T)> {
+      data: &'a mut Data<T>) -> std::io::Result<(PageId, &'a mut T)> {
     match data.free_list.iter().nth(0).map(|x| *x) {
-      Some(idx) =>
-          Self::page_with_idx(idx, maybe_id, actor, data).log_and_ok(),
+      Some(idx) => Self::page_with_idx(idx, maybe_id, actor, data),
       None => {
         info!("Free page unavaible, finding replacement");
         match actor.replacer.victim() {
           // The idx of victim page.
-          Some(idx) =>
-              Self::page_with_idx(idx, maybe_id, actor, data).log_and_ok(),
-          None => None,  // Replacer cannot find a victim.
+          Some(idx) => Self::page_with_idx(idx, maybe_id, actor, data),
+          None => Err(not_found("Replacer cannot find a victim"))
         }
       },
     }.map(|(page_id, page)| {
@@ -266,6 +262,18 @@ impl<R> Actor<R> where R: Replacer<usize> {
   }
 }
 
+fn invalid_data(message: &str) -> Error {
+  Error::new(ErrorKind::InvalidData, message)
+}
+
+fn invalid_input(message: &str) -> Error {
+  Error::new(ErrorKind::InvalidInput, message)
+}
+
+fn not_found(message: &str) -> Error {
+  Error::new(ErrorKind::NotFound, message)
+}
+
 #[cfg(test)]
 mod tests {
   use crate::testing::file_deleter::FileDeleter;
@@ -285,7 +293,7 @@ mod tests {
 
     let mut bpm = result.unwrap();
     let maybe_page = bpm.new_page();
-    assert!(maybe_page.is_some());
+    assert!(maybe_page.is_ok());
 
     let (page_id, page) = maybe_page.unwrap();
     assert_eq!(0, page_id);
