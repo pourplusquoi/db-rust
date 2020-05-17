@@ -38,7 +38,7 @@ impl HeaderPage {
 
   pub fn get_record_count(&self) -> i32 {
     unsafe {
-      reinterpret::as_i32(self.data())
+      reinterpret::read_i32(self.data())
     }
   }
 
@@ -46,7 +46,7 @@ impl HeaderPage {
 
   fn set_record_count(&mut self, record_count: i32) {
     unsafe {
-      *reinterpret::as_i32_mut(self.data_mut()) = record_count;
+      reinterpret::write_i32(self.data_mut(), record_count);
     }
   }
 }
