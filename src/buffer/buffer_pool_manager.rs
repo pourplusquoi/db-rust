@@ -14,9 +14,12 @@ use std::io::ErrorKind;
 use std::ops::Drop;
 use log::info;
 
+// Struct members are split into |data| and |actor|, because this makes it
+// possible to hold mutable borrow on |actor| while acquiring mutable/immutable
+// borrow on |data|.
 pub struct BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   data: Data<T>,
-  actor: Actor<R>,  // Maybe mutable.
+  actor: Actor<R>,
 }
 
 // The default BufferPoolManager uses LRUReplacer.
@@ -25,6 +28,7 @@ pub type DefaultBufferPoolManager<T> = BufferPoolManager<T, LRUReplacer<usize>>;
 impl<T, R> Drop for BufferPoolManager<T, R>
     where T: Page + Clone, R: Replacer<usize> {
   fn drop(&mut self) {
+    // Unable to handle I/O errors on destruction.
     self.flush_all_pages().log();
   }
 }
