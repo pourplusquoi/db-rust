@@ -3,6 +3,7 @@ use crate::buffer::replacer::Replacer;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PageId;
 use crate::disk::disk_manager::DiskManager;
+use crate::logging::error_logging::ErrorLogging;
 use crate::page::table_page::TablePage;
 use crate::page::page::Page;
 use std::clone::Clone;
@@ -23,7 +24,7 @@ pub type DefaultBufferPoolManager<T> = BufferPoolManager<T, LRUReplacer<usize>>;
 impl<T, R> Drop for BufferPoolManager<T, R>
     where T: Page + Clone, R: Replacer<usize> {
   fn drop(&mut self) {
-    self.flush_all_pages();
+    self.flush_all_pages().log();
   }
 }
 
@@ -65,7 +66,9 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
                        actor, data)
         .and_then(|(_, page)| {
           info!("Loading the page from disk");
-          Self::load_page_inl(&mut actor.disk_mgr, page).map(|_| page).ok()
+          Self::load_page_inl(&mut actor.disk_mgr, page)
+              .map(|_| page)
+              .log_and_ok()
         })
   }
 
@@ -102,19 +105,23 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       return false;
     }
     match self.data.page_table.get(&page_id) {
-      Some(&idx) => Self::flush_page_inl(&mut self.actor.disk_mgr,
-                                         &mut self.data.pages[idx]).is_ok(),
+      Some(&idx) =>
+          Self::flush_page_inl(&mut self.actor.disk_mgr,
+                               &mut self.data.pages[idx]).log_and_is_ok(),
       None => false,  // Page not found in table.
     }
   }
 
   // Flushes if dirty all pages (i.e. |self.data.pages|) to disk.
-  pub fn flush_all_pages(&mut self) {
+  pub fn flush_all_pages(&mut self) -> std::io::Result<()> {
+    let mut result = Ok(());
     for (page_id, &idx) in self.data.page_table.iter() {
       info!("Flush page; page_id = {}", page_id);
-      Self::flush_page_inl(&mut self.actor.disk_mgr,
-                           &mut self.data.pages[idx]);
+      let flush_result = Self::flush_page_inl(&mut self.actor.disk_mgr,
+                                              &mut self.data.pages[idx]);
+      result = result.and(flush_result);
     }
+    result
   }
 
   // Deletes a page. User should call this method for deleting a page. This
@@ -149,12 +156,14 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       actor: &mut Actor<R>,
       data: &'a mut Data<T>) -> Option<(PageId, &'a mut T)> {
     match data.free_list.iter().nth(0).map(|x| *x) {
-      Some(idx) => Self::page_with_idx(idx, maybe_id, actor, data),
+      Some(idx) =>
+          Self::page_with_idx(idx, maybe_id, actor, data).log_and_ok(),
       None => {
         info!("Free page unavaible, finding replacement");
         match actor.replacer.victim() {
           // The idx of victim page.
-          Some(idx) => Self::page_with_idx(idx, maybe_id, actor, data),
+          Some(idx) =>
+              Self::page_with_idx(idx, maybe_id, actor, data).log_and_ok(),
           None => None,  // Replacer cannot find a victim.
         }
       },
@@ -174,22 +183,22 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       idx: usize,
       maybe_id: Option<PageId>,
       actor: &mut Actor<R>,
-      data: &'a mut Data<T>) -> Option<(PageId, &'a mut T)> {
+      data: &'a mut Data<T>) -> std::io::Result<(PageId, &'a mut T)> {
+    let page = &mut data.pages[idx];
+    // Flush the old page to disk.
+    Self::flush_page_inl(&mut actor.disk_mgr, page)?;
+    // Get the page ID.
     let allocate = || {
       info!("Allocate page ID");
       actor.disk_mgr.allocate_page()
     };
     let page_id = maybe_id.unwrap_or_else(allocate);
-    info!("Found free page; page_id = {}; idx = {}", page_id, idx);
-    let page = &mut data.pages[idx];
-    // Flush the old page to disk.
-    Self::flush_page_inl(&mut actor.disk_mgr, page);
     // Update the page table.
     data.page_table.remove(&page.page_id());
     data.page_table.insert(page_id, idx);
     // Update the page ID.
     page.set_page_id(page_id);
-    Some((page_id, page))
+    Ok((page_id, page))
   }
 
   // Flushes the specified page to disk manager iff the page is dirty, and

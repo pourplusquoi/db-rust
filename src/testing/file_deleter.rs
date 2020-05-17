@@ -1,3 +1,4 @@
+use crate::logging::error_logging::ErrorLogging;
 use std::fs;
 use std::ops::Drop;
 
@@ -20,8 +21,7 @@ impl<'a> FileDeleter<'a> {
 impl<'a> Drop for FileDeleter<'a> {
   fn drop(&mut self) {
     for path in self.file_paths.iter() {
-      // Ignore errors.
-      fs::remove_file(path);
+      fs::remove_file(path).log();
     }
   }
 }
