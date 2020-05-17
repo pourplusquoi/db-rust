@@ -38,7 +38,6 @@ impl<T, R> Drop for BufferPoolManager<T, R>
 }
 
 impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
-
   pub fn new(size: usize, db_file: &str) -> std::io::Result<Self> {
     Ok(BufferPoolManager {
       data: Data::new(size),
