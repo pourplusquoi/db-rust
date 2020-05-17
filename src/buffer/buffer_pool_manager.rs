@@ -13,9 +13,8 @@ use log::info;
 use log::warn;
 
 pub struct BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
-  pool_size: usize,
   data: Data<T>,
-  Actor: Actor<R>,  // Maybe mutable
+  actor: Actor<R>,  // Maybe mutable
 }
 
 // The default BufferPoolManager uses LRUReplacer.
@@ -32,16 +31,15 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   pub fn new(size: usize, db_file: &str) -> std::io::Result<Self> {
     let mut buffer_pool_mgr = BufferPoolManager {
-      pool_size: size,
       data: Data::new(size),
-      Actor: Actor::new(db_file)?,
+      actor: Actor::new(db_file)?,
     };
     buffer_pool_mgr.init();
     Ok(buffer_pool_mgr)
   }
 
   fn init(&mut self) {
-    for i in 0..self.pool_size {
+    for i in 0..self.data.pool_size {
       self.data.free_list.insert(i);
     }
   }
@@ -58,14 +56,14 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       None => (),
     }
     info!("Page not found in table, need to load from disk");
-    let Actor = &mut self.Actor;
+    let actor = &mut self.actor;
+    let data = &mut self.data;
     Self::prepare_page(Some(page_id),
                        /*need_reset=*/ false,
-                       Actor,
-                       &mut self.data)
+                       actor, data)
         .and_then(|(_, page)| {
           info!("Loading the page from disk");
-          Self::load_page_inl(&mut Actor.disk_mgr, page).map(|_| page).ok()
+          Self::load_page_inl(&mut actor.disk_mgr, page).map(|_| page).ok()
         })
   }
 
@@ -79,7 +77,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
         if page.unpin() {
           if page.pin_count() == 0 {
             info!("Insert page to replacer; idx = {}", idx);
-            self.Actor.replacer.insert(idx);
+            self.actor.replacer.insert(idx);
           }
           true
         } else {
@@ -98,7 +96,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       return false;
     }
     match self.data.page_table.get(&page_id) {
-      Some(&idx) => Self::flush_page_inl(&mut self.Actor.disk_mgr,
+      Some(&idx) => Self::flush_page_inl(&mut self.actor.disk_mgr,
                                          &mut self.data.pages[idx]).is_ok(),
       None => false,  // Page not found in table.
     }
@@ -107,7 +105,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   pub fn flush_all_pages(&mut self) {
     for (page_id, &idx) in self.data.page_table.iter() {
       info!("Flush page; page_id = {}", page_id);
-      Self::flush_page_inl(&mut self.Actor.disk_mgr,
+      Self::flush_page_inl(&mut self.actor.disk_mgr,
                            &mut self.data.pages[idx]);
     }
   }
@@ -123,7 +121,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     info!("New page");
     Self::prepare_page(/*maybe_id=*/ None,
                        /*need_reset=*/ true,
-                       &mut self.Actor,
+                       &mut self.actor,
                        &mut self.data)
         .map(|(page_id, page)| {
           // TODO: Update new page's metadata.
@@ -134,15 +132,15 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   fn prepare_page<'a>(
       maybe_id: Option<PageId>,
       need_reset: bool,
-      Actor: &mut Actor<R>,
+      actor: &mut Actor<R>,
       data: &'a mut Data<T>) -> Option<(PageId, &'a mut T)> {
     match data.free_list.iter().nth(0).map(|x| *x) {
-      Some(idx) => Self::page_with_idx(idx, maybe_id, Actor, data),
+      Some(idx) => Self::page_with_idx(idx, maybe_id, actor, data),
       None => {
         info!("Free page unavaible, finding replacement");
-        match Actor.replacer.victim() {
+        match actor.replacer.victim() {
           // The idx of victim page.
-          Some(idx) => Self::page_with_idx(idx, maybe_id, Actor, data),
+          Some(idx) => Self::page_with_idx(idx, maybe_id, actor, data),
           None => None,  // Replacer cannot find a victim.
         }
       },
@@ -202,6 +200,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 }
 
 struct Data<T> where T: Page + Clone {
+  pool_size: usize,
   pages: Vec<T>,
   page_table: HashMap<PageId, usize>,
   free_list: HashSet<usize>,
@@ -210,6 +209,7 @@ struct Data<T> where T: Page + Clone {
 impl<T> Data<T> where T: Page + Clone {
   pub fn new(size: usize) -> Self {
     Data {
+      pool_size: size,
       pages: vec![T::new(); size],
       page_table: HashMap::new(),
       free_list: HashSet::new(),
