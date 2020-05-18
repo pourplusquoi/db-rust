@@ -102,7 +102,7 @@ impl DiskManager {
   }
 
   pub fn allocate_page(&mut self) -> PageId {
-    self.metadata.find_free()
+    self.metadata.remove_free()
   }
 
   pub fn deallocate_page(&mut self, page_id: PageId) {
@@ -164,7 +164,7 @@ impl Metadata {
     }
   }
 
-  pub fn find_free(&mut self) -> PageId {
+  pub fn remove_free(&mut self) -> PageId {
     match self.free_pages.iter().nth(0).map(|x| *x) {
       Some(id) => {
         self.free_pages.remove(&id);
