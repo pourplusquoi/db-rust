@@ -216,7 +216,7 @@ mod tests {
 
   #[test]
   fn disk_manager() {
-    let file_path = "/tmp/disk_manager.1.testfile";
+    let file_path = "/tmp/testfile.disk_manager.1.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
@@ -259,7 +259,7 @@ mod tests {
 
   #[test]
   fn drop_new() {
-    let file_path = "/tmp/disk_manager.2.testfile";
+    let file_path = "/tmp/testfile.disk_manager.2.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
@@ -311,7 +311,7 @@ mod tests {
 
   #[test]
   fn allocate_deallocate() {
-    let file_path = "/tmp/disk_manager.3.testfile";
+    let file_path = "/tmp/testfile.disk_manager.3.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();

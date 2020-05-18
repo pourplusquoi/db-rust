@@ -310,7 +310,7 @@ mod tests {
 
   #[test]
   fn buffer_pool_manager() {
-    let file_path = "/tmp/buffer_pool_manager.1.testfile";
+    let file_path = "/tmp/testfile.buffer_pool_manager.1.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
@@ -329,9 +329,11 @@ mod tests {
     // Change content in page one.
     reinterpret::write_str(&mut page.data_mut()[8..], "Hello");
 
+    // Create 9 new pages.
     for i in 1..10 {
       assert_eq!(i + 1, bpm.new_page().unwrap().page_id());
     }
+
     // All the pages are pinned, the buffer pool is full.
     for _ in 10..15 {
       assert!(bpm.new_page().is_err());
@@ -341,6 +343,7 @@ mod tests {
     for i in 1..6 {
       assert!(bpm.unpin_page(i, /*is_dirty=*/ true).is_ok());
     }
+
     // We have 5 empty slots in LRU list, evict page zero out of buffer pool.
     for i in 10..14 {
       assert_eq!(i + 1, bpm.new_page().unwrap().page_id());
@@ -349,6 +352,7 @@ mod tests {
     // Fetch page one again.
     let maybe_page = bpm.fetch_page(1);
     assert!(maybe_page.is_ok());
+
     // Check read content.
     let page = maybe_page.unwrap();
     assert_eq!("Hello", reinterpret::read_str(&page.data()[8..]));
@@ -356,7 +360,7 @@ mod tests {
 
   #[test]
   fn new_and_delete() {
-    let file_path = "/tmp/buffer_pool_manager.2.testfile";
+    let file_path = "/tmp/testfile.buffer_pool_manager.2.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
@@ -394,7 +398,7 @@ mod tests {
 
   #[test]
   fn drop_flushes_all_pages() {
-    let file_path = "/tmp/buffer_pool_manager.3.testfile";
+    let file_path = "/tmp/testfile.buffer_pool_manager.3.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
