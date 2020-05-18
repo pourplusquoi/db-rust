@@ -2,12 +2,10 @@
 
 use std::sync::atomic::AtomicI32;
 
-pub const INVALID_PAGE_ID: i32 = -1;         // representing an invalid page id
-pub const INVALID_TRANSACTION_ID: i32 = -1;  // representing an invalid txn id
-pub const HEADER_PAGE_ID: i32 = 0;           // the header page id
-pub const PAGE_SIZE: usize = 4096;           // size of a data page in byte
-pub const BUCKET_SIZE:usize = 50;            // size of extendible hash bucket
+pub const INVALID_PAGE_ID: i32 = -1;         // Represents an invalid page ID.
+pub const INVALID_TRANSACTION_ID: i32 = -1;  // Represents an invalid tansaction ID.
+pub const HEADER_PAGE_ID: i32 = 1;           // The header page ID.
+pub const PAGE_SIZE: usize = 4096;           // Size of a data page in bytes.
 
-pub type AtomicPageId = AtomicI32;
 pub type PageId = i32;
 pub type TransactionId = i32;
