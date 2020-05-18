@@ -37,10 +37,8 @@ impl HeaderPage {
     }
     let count = self.record_count();
     let offset = 12 + count * 36;
-    unsafe {
-      reinterpret::write_str(&mut self.data[offset..], name);
-      reinterpret::write_i32(&mut self.data[(offset + 32)..], root_id);
-    }
+    reinterpret::write_str(&mut self.data[offset..], name);
+    reinterpret::write_i32(&mut self.data[(offset + 32)..], root_id);
     self.set_record_count(count + 1);
     Ok(())
   }
@@ -66,9 +64,7 @@ impl HeaderPage {
     Self::validate_name(name)?;
     let idx = self.find_record(name)?;
     let offset = 12 + idx * 36;
-    unsafe {
-      reinterpret::write_i32(&mut self.data[(offset + 32)..], root_id);
-    }
+    reinterpret::write_i32(&mut self.data[(offset + 32)..], root_id);
     Ok(())
   }
 
@@ -76,36 +72,28 @@ impl HeaderPage {
     Self::validate_name(name)?;
     let idx = self.find_record(name)?;
     let offset = 8 + (idx + 1) * 36;
-    let root_id = unsafe {
-      reinterpret::read_i32(&self.data[offset..])
-    };
+    let root_id = reinterpret::read_i32(&self.data[offset..]);
     Ok(root_id)
   }
 
   pub fn record_count(&self) -> usize {
-    unsafe {
-      reinterpret::read_u32(&self.data[8..]) as usize
-    }
+    reinterpret::read_u32(&self.data[8..]) as usize
   }
 
   fn find_record(&self, name: &str) -> std::io::Result<usize> {
     for i in 0..self.record_count() {
       let offset = 12 + i * 36;
-      unsafe {
-        let raw_name = reinterpret::read_str(&self.data[offset..]);
-        if raw_name == name {
-          return Ok(i);
-        }
+      let raw_name = reinterpret::read_str(&self.data[offset..]);
+      if raw_name == name {
+        return Ok(i);
       }
     }
     Err(not_found("Record not found"))
   }
 
   fn set_record_count(&mut self, record_count: usize) {
-    unsafe {
-      // Assuming |record_count| fits in u32.
-      reinterpret::write_u32(&mut self.data[8..], record_count as u32);
-    }
+    // Assuming |record_count| fits in u32.
+    reinterpret::write_u32(&mut self.data[8..], record_count as u32);
   }
 
   fn validate_name(name: &str) -> std::io::Result<()> {

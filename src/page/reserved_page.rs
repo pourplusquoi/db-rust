@@ -33,38 +33,26 @@ impl ReservedPage {
   }
 
   pub fn record_count(&self) -> usize {
-    unsafe {
-      reinterpret::read_u32(&self.data[8..]) as usize
-    }
+    reinterpret::read_u32(&self.data[8..]) as usize
   }
 
   pub fn write_records(&mut self, free_ids: &Vec<PageId>) {
-    unsafe {
-      let mut offset = 8;
-      // Assmusing |free_ids.len()| fits into u32.
-      reinterpret::write_u32(&mut self.data[offset..], free_ids.len() as u32);
-      // print!("Writing ");
-      for &id in free_ids.iter() {
-        // print!("id={} ", id);
-        offset += 4;
-        reinterpret::write_i32(&mut self.data[offset..], id);
-      }
-      // println!("");
+    let mut offset = 8;
+    // Assmusing |free_ids.len()| fits into u32.
+    reinterpret::write_u32(&mut self.data[offset..], free_ids.len() as u32);
+    for &id in free_ids.iter() {
+      offset += 4;
+      reinterpret::write_i32(&mut self.data[offset..], id);
     }
   }
 
   pub fn read_records(&self) -> Vec<PageId> {
     let mut free_ids = Vec::new();
-    unsafe {
-      let mut offset = 8;
-      let size = reinterpret::read_u32(&self.data[offset..]);
-      // print!("Reading ");
-      for _ in 0..size {
-        offset += 4;
-        // print!("id={} ", reinterpret::read_i32(&self.data[offset..]));
-        free_ids.push(reinterpret::read_i32(&self.data[offset..]));
-      }
-      // println!("");
+    let mut offset = 8;
+    let size = reinterpret::read_u32(&self.data[offset..]);
+    for _ in 0..size {
+      offset += 4;
+      free_ids.push(reinterpret::read_i32(&self.data[offset..]));
     }
     free_ids
   }

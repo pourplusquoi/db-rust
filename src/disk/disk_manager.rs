@@ -186,17 +186,13 @@ impl Metadata {
 }
 
 fn update_checksum(data: &mut [u8]) {
-  unsafe {
-    reinterpret::write_u64(data, compute_checksum(&data[8..]));
-  }
+  reinterpret::write_u64(data, compute_checksum(&data[8..]));
 }
 
 fn validate_checksum(data: &[u8]) -> std::io::Result<()> {
-  unsafe {
-    match reinterpret::read_u64(data) == compute_checksum(&data[8..]) {
-      true => Ok(()),
-      false => Err(invalid_data("Page corrupted")),
-    }
+  match reinterpret::read_u64(data) == compute_checksum(&data[8..]) {
+    true => Ok(()),
+    false => Err(invalid_data("Page corrupted")),
   }
 }
 
@@ -244,13 +240,14 @@ mod tests {
       // Reads the data from page on disk with the same page ID.
       let data_read: &mut [u8] = buffer.as_bytes_mut();
       assert!(disk_mgr.read_page(page_id, data_read).is_ok());
-      // Make sure that the data written and the data read match.
-      assert_eq!(data[8..], buffer[8..],
-                 "Data read differ from the data written");
-      assert_eq!(reinterpret::read_u64(buffer[0..8].as_bytes()),
-                 compute_checksum(data[8..].as_bytes()),
-                 "Checksum is set incorrectly");
     }
+
+    // Make sure that the data written and the data read match.
+    assert_eq!(data[8..], buffer[8..],
+               "Data read differ from the data written");
+    assert_eq!(reinterpret::read_u64(buffer[0..8].as_bytes()),
+               compute_checksum(data[8..].as_bytes()),
+               "Checksum is set incorrectly");
   }
 
   #[test]
@@ -294,14 +291,15 @@ mod tests {
         // Reads the data from page on disk with the same page ID.
         let data_read: &mut [u8] = buffer.as_bytes_mut();
         assert!(disk_mgr.read_page(page_id, data_read).is_ok());
-        // Make sure that the data written and the data read match.
-        assert_eq!(data[8..], buffer[8..],
-                   "Data read differ from the data written");
-        assert_eq!(reinterpret::read_u64(buffer[0..8].as_bytes()),
-                   compute_checksum(data[8..].as_bytes()),
-                   "Checksum is set incorrectly");
-      }  // Drops disk_mgr.
-    }
+      }
+
+      // Make sure that the data written and the data read match.
+      assert_eq!(data[8..], buffer[8..],
+                 "Data read differ from the data written");
+      assert_eq!(reinterpret::read_u64(buffer[0..8].as_bytes()),
+                 compute_checksum(data[8..].as_bytes()),
+                 "Checksum is set incorrectly");
+    }  // Drops disk_mgr.
   }
 
   #[test]

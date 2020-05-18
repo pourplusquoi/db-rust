@@ -131,30 +131,40 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   // Deletes a page. User should call this method for deleting a page. This
   // routine will call |self.actor.disk_mgr| to deallocate the page.
-  pub fn delete_page(&self, page_id: PageId) -> bool {
+  pub fn delete_page(&mut self, page_id: PageId) -> std::io::Result<()> {
     info!("Delete page; page_id = {}", page_id);
-    // TODO: Implement this. (Need to reset pin_count & is_dirty!)?  If the
-    // page is found within page table, but pin_count != 0, return false.
-    false
+    match self.data.page_table.remove(&page_id) {
+      Some(idx) => {
+        // If it fails on flushing the page, it will still be added to
+        // |self.data.free_list|, will retry flushing later when it is selected
+        // for accommodation for a new page.
+        self.data.free_list.push(idx);
+        let page = &mut self.data.pages[idx];
+        if page.pin_count() > 0 {
+          return Err(invalid_data("Cannot delete pinned page"));
+        }
+        Self::flush_page_inl(&mut self.actor.disk_mgr, page)?;
+      },
+      None => (),
+    }
+    self.actor.disk_mgr.deallocate_page(page_id);
+    Ok(())
   }
 
   // Creates a new page. User should call this method if one needs to create a
   // new page. This routine will call |self.actor.disk_mgr| to allocate a page.
+  // TODO: Update new page's metadata?
   pub fn new_page(&mut self) -> std::io::Result<&mut T> {
     info!("New page");
     Self::prepare_page(/*maybe_id=*/ None,
                        /*need_reset=*/ true,
                        &mut self.actor,
                        &mut self.data)
-        .map(|page| {
-          // TODO: Update new page's metadata.
-          page
-        })
   }
 
-  // Prepares a new page and returns a (PageId, Page) pair. If |maybe_id| is
-  // None, asks |actor.disk_mgr| to allocate a new page ID. If |need_reset| is
-  // |true|, resets the page with 0's.
+  // Prepares and pins a new page and returns a (PageId, Page) pair. If
+  // |maybe_id| is None, asks |actor.disk_mgr| to allocate a new page ID. If
+  // |need_reset| is |true|, resets the page with 0's.
   fn prepare_page<'a>(
       maybe_id: Option<PageId>,
       need_reset: bool,
@@ -199,6 +209,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       if need_reset {
         Self::reset_page(page);
       }
+      page.pin();
       page
     })
   }
@@ -280,6 +291,7 @@ impl<R> Actor<R> where R: Replacer<usize> {
 
 #[cfg(test)]
 mod tests {
+  use crate::common::reinterpret;
   use crate::testing::file_deleter::FileDeleter;
   use super::*;
 
@@ -303,6 +315,31 @@ mod tests {
     let page = maybe_page.unwrap();
     assert_eq!(1, page.page_id(), "Page 0 is reserved");
 
-    let _data = page.data_mut();
+    // Change content in page one.
+    reinterpret::write_str(&mut page.data_mut()[8..], "Hello");
+
+    for i in 1..10 {
+      assert_eq!(i + 1, bpm.new_page().unwrap().page_id());
+    }
+    // All the pages are pinned, the buffer pool is full.
+    for _ in 10..15 {
+      assert!(bpm.new_page().is_err());
+    }
+
+    // Upin the first five pages, add them to LRU list, set as dirty.
+    for i in 1..6 {
+      assert!(bpm.unpin_page(i, /*is_dirty=*/ true).is_ok());
+    }
+    // We have 5 empty slots in LRU list, evict page zero out of buffer pool.
+    for i in 10..14 {
+      assert_eq!(i + 1, bpm.new_page().unwrap().page_id());
+    }
+
+    // Fetch page one again.
+    let maybe_page = bpm.fetch_page(1);
+    assert!(maybe_page.is_ok());
+    // Check read content.
+    let page = maybe_page.unwrap();
+    assert_eq!("Hello", reinterpret::read_str(&page.data()[8..]));
   }
 }
