@@ -1,4 +1,4 @@
-// Database use the first page (page_id = 0) as header page to store metadata, in
+// Database use the first page (page_id = 1) as header page to store metadata, in
 // our case, we will contain information about table/index name (length less than
 // 32 bytes) and their corresponding root_id
 //
@@ -35,11 +35,11 @@ impl HeaderPage {
     if self.find_record(name).is_ok() {
       return Err(already_exists(&format!("Record exists; name = {}", name)));
     }
-    let count = self.get_record_count();
+    let count = self.record_count();
     let offset = 12 + count * 36;
     unsafe {
-      reinterpret::write_str(&mut self.data_mut()[offset..], name);
-      reinterpret::write_i32(&mut self.data_mut()[(offset + 32)..], root_id);
+      reinterpret::write_str(&mut self.data[offset..], name);
+      reinterpret::write_i32(&mut self.data[(offset + 32)..], root_id);
     }
     self.set_record_count(count + 1);
     Ok(())
@@ -48,11 +48,11 @@ impl HeaderPage {
   pub fn delete_record(&mut self, name: &str) -> std::io::Result<()> {
     Self::validate_name(name)?;
     let idx = self.find_record(name)?;
-    let count = self.get_record_count();
+    let count = self.record_count();
     let offset = 12 + idx * 36;
     let n = (count - idx - 1) * 36;
     unsafe {
-      let ptr = self.data_mut().as_mut_ptr().add(offset);
+      let ptr = self.data.as_mut_ptr().add(offset);
       for i in 0..n {
         *ptr.add(i) = *ptr.add(i + 36);
       }
@@ -67,12 +67,12 @@ impl HeaderPage {
     let idx = self.find_record(name)?;
     let offset = 12 + idx * 36;
     unsafe {
-      reinterpret::write_i32(&mut self.data_mut()[(offset + 32)..], root_id);
+      reinterpret::write_i32(&mut self.data[(offset + 32)..], root_id);
     }
     Ok(())
   }
 
-  pub fn get_root_id(&self, name: &str) -> std::io::Result<i32> {
+  pub fn root_id(&self, name: &str) -> std::io::Result<i32> {
     Self::validate_name(name)?;
     let idx = self.find_record(name)?;
     let offset = 8 + (idx + 1) * 36;
@@ -82,17 +82,17 @@ impl HeaderPage {
     Ok(root_id)
   }
 
-  pub fn get_record_count(&self) -> usize {
+  pub fn record_count(&self) -> usize {
     unsafe {
-      reinterpret::read_u32(self.data()) as usize
+      reinterpret::read_u32(&self.data[8..]) as usize
     }
   }
 
   fn find_record(&self, name: &str) -> std::io::Result<usize> {
-    for i in 0..self.get_record_count() {
+    for i in 0..self.record_count() {
       let offset = 12 + i * 36;
       unsafe {
-        let raw_name = reinterpret::read_str(&self.data()[offset..]);
+        let raw_name = reinterpret::read_str(&self.data[offset..]);
         if raw_name == name {
           return Ok(i);
         }
@@ -104,7 +104,7 @@ impl HeaderPage {
   fn set_record_count(&mut self, record_count: usize) {
     unsafe {
       // Assuming |record_count| fits in u32.
-      reinterpret::write_u32(self.data_mut(), record_count as u32);
+      reinterpret::write_u32(&mut self.data[8..], record_count as u32);
     }
   }
 
@@ -180,16 +180,16 @@ mod tests {
   #[test]
   fn header_page_test() {
     let mut header_page = HeaderPage::new();
-    assert_eq!(0, header_page.get_record_count());
-    assert!(header_page.get_root_id("Table A").is_err());
+    assert_eq!(0, header_page.record_count());
+    assert!(header_page.root_id("Table A").is_err());
 
     assert!(header_page.insert_record("Table A", 12).is_ok());
     assert!(header_page.insert_record("Table B", 0).is_ok());
     assert!(header_page.insert_record("Table C", -1).is_ok());
-    assert_eq!(12, header_page.get_root_id("Table A").unwrap());
-    assert_eq!(0, header_page.get_root_id("Table B").unwrap());
-    assert_eq!(-1, header_page.get_root_id("Table C").unwrap());
-    assert_eq!(3, header_page.get_record_count());
+    assert_eq!(12, header_page.root_id("Table A").unwrap());
+    assert_eq!(0, header_page.root_id("Table B").unwrap());
+    assert_eq!(-1, header_page.root_id("Table C").unwrap());
+    assert_eq!(3, header_page.record_count());
 
     assert!(header_page.insert_record("Table A", 25).is_err());
     assert!(header_page.update_record("Table D", 7).is_err());
@@ -197,21 +197,21 @@ mod tests {
     assert!(header_page.update_record("Table A", 27).is_ok());
     assert!(header_page.update_record("Table B", 50).is_ok());
     assert!(header_page.update_record("Table C", 94).is_ok());
-    assert_eq!(27, header_page.get_root_id("Table A").unwrap());
-    assert_eq!(50, header_page.get_root_id("Table B").unwrap());
-    assert_eq!(94, header_page.get_root_id("Table C").unwrap());
-    assert_eq!(3, header_page.get_record_count());
+    assert_eq!(27, header_page.root_id("Table A").unwrap());
+    assert_eq!(50, header_page.root_id("Table B").unwrap());
+    assert_eq!(94, header_page.root_id("Table C").unwrap());
+    assert_eq!(3, header_page.record_count());
 
     assert!(header_page.delete_record("Table A").is_ok());
     assert!(header_page.delete_record("Table B").is_ok());
     assert!(header_page.delete_record("Table D").is_err());
-    assert!(header_page.get_root_id("Table A").is_err());
-    assert!(header_page.get_root_id("Table B").is_err());
-    assert_eq!(94, header_page.get_root_id("Table C").unwrap());
-    assert_eq!(1, header_page.get_record_count());
+    assert!(header_page.root_id("Table A").is_err());
+    assert!(header_page.root_id("Table B").is_err());
+    assert_eq!(94, header_page.root_id("Table C").unwrap());
+    assert_eq!(1, header_page.record_count());
 
     assert!(header_page.insert_record("Table A", 64).is_ok());
-    assert_eq!(64, header_page.get_root_id("Table A").unwrap());
-    assert_eq!(2, header_page.get_record_count());
+    assert_eq!(64, header_page.root_id("Table A").unwrap());
+    assert_eq!(2, header_page.record_count());
   }
 }

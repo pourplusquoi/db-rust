@@ -287,11 +287,12 @@ mod tests {
 
   #[test]
   fn buffer_pool_manager() {
+    let file_path = "/tmp/buffer_pool_manager.1.testfile";
+
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
-
-    let file_path = "/tmp/testfile";
     file_deleter.push(&file_path);
+
     let result = TestingBufferPoolManager::new(10, file_path);
     assert!(result.is_ok(), "Failed to create");
 
@@ -300,7 +301,7 @@ mod tests {
     assert!(maybe_page.is_ok());
 
     let page = maybe_page.unwrap();
-    assert_eq!(0, page.page_id());
+    assert_eq!(1, page.page_id(), "Page 0 is reserved");
 
     let _data = page.data_mut();
   }
