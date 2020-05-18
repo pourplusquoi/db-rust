@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 const DBL_MIN: f64 = std::f64::MIN;
 const DBL_MAX: f64 = std::f64::MAX;
 const FLT_MIN: f32 = std::f32::MIN;

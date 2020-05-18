@@ -276,7 +276,7 @@ mod tests {
     let mut file_deleter = FileDeleter::new();
     file_deleter.push(&file_path);
 
-    let mut page_id = INVALID_PAGE_ID;
+    let page_id: PageId;
     let mut data = String::with_capacity(PAGE_SIZE);
     let mut buffer = String::with_capacity(PAGE_SIZE);
     for i in 0..PAGE_SIZE {
