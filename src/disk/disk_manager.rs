@@ -12,7 +12,6 @@ use crate::logging::error_logging::ErrorLogging;
 use crate::page::reserved_page::ReservedPage;
 use std::collections::HashSet;
 use std::collections::hash_map::DefaultHasher;
-use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::hash::Hash;
@@ -56,19 +55,20 @@ impl DiskManager {
           .open(db_file)?,
       metadata: Metadata::new(),
     }).and_then(|mut disk_mgr| {
-      disk_mgr.init(db_file)?;
+      disk_mgr.init()?;
       Ok(disk_mgr)
     })
   }
 
-  fn init(&mut self, db_file: &str) -> std::io::Result<()> {
+  fn init(&mut self) -> std::io::Result<()> {
     // Read only if the file is not empty.
-    if fs::metadata(db_file)?.len() > 0 {
+    if self.db_io.metadata()?.len() > 0 {
       Self::read_inl(&mut self.db_io,
                      self.metadata.reserved.data_mut(),
                      PAGE_SIZE)?;
     }
     let mut records = self.metadata.reserved.read_records();
+    // If |records| is empty, the file is empty, the next free page is 1.
     if records.is_empty() {
       self.metadata.next_free = 1;
     } else {
@@ -83,8 +83,8 @@ impl DiskManager {
   pub fn write_page(&mut self,
                     page_id: PageId,
                     data: &mut [u8]) -> std::io::Result<()> {
-    let offset = (page_id as usize) * PAGE_SIZE;
-    self.db_io.seek(SeekFrom::Start(offset as u64))?;
+    let offset = (page_id as u64) * (PAGE_SIZE as u64);
+    self.db_io.seek(SeekFrom::Start(offset))?;
     Self::write_inl(&mut self.db_io, data, PAGE_SIZE)?;
     self.db_io.sync_data()?;
     Ok(())
@@ -95,8 +95,19 @@ impl DiskManager {
   pub fn read_page(&mut self,
                    page_id: PageId,
                    data: &mut [u8]) -> std::io::Result<()> {
-    let offset = (page_id as usize) * PAGE_SIZE;
-    self.db_io.seek(SeekFrom::Start(offset as u64))?;
+    if page_id >= self.metadata.next_free ||
+        self.metadata.free_pages.contains(&page_id) {
+      return Err(invalid_input(
+          &format!("The page is not allocated; page_id = {}", page_id)));
+    }
+
+    // Extend the file length when the page is at the tail.
+    let offset = (page_id as u64) * (PAGE_SIZE as u64);
+    if offset == self.db_io.metadata()?.len() {
+      self.db_io.set_len(offset + PAGE_SIZE as u64)?;
+    }
+
+    self.db_io.seek(SeekFrom::Start(offset))?;
     Self::read_inl(&mut self.db_io, data, PAGE_SIZE)?;
     Ok(())
   }
@@ -192,12 +203,12 @@ fn update_checksum(data: &mut [u8]) {
   reinterpret::write_u64(data, compute_checksum(&data[8..]));
 }
 
-// Note: It is possible that the first 8 bytes (aka. checksum) is 0, in which
-// case the page is empty and has not been written to. However, it is
-// undesirable, because the caller should always flush data before read.
-// Otherwise, one may encounter unexpected EOF. So it is not allowed here.
 fn validate_checksum(data: &[u8]) -> std::io::Result<()> {
-  match reinterpret::read_u64(data) == compute_checksum(&data[8..]) {
+  let checksum = reinterpret::read_u64(data);
+  if checksum == 0 {
+    return Ok(());  // The page is empty, it is a success.
+  }
+  match checksum == compute_checksum(&data[8..]) {
     true => Ok(()),
     false => Err(invalid_data("Page corrupted")),
   }
@@ -265,7 +276,7 @@ mod tests {
     let mut file_deleter = FileDeleter::new();
     file_deleter.push(&file_path);
 
-    let page_id = 1;
+    let mut page_id = INVALID_PAGE_ID;
     let mut data = String::with_capacity(PAGE_SIZE);
     let mut buffer = String::with_capacity(PAGE_SIZE);
     for i in 0..PAGE_SIZE {
@@ -282,6 +293,7 @@ mod tests {
       assert!(result.is_ok(), "Failed to create DiskManager");
 
       let mut disk_mgr = result.unwrap();
+      page_id = disk_mgr.allocate_page();
       unsafe {
         // Write the data to page on disk with specified page ID.
         let data_write: &mut [u8] = data.as_bytes_mut();

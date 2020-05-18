@@ -154,10 +154,6 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   // Creates a new page. User should call this method if one needs to create a
   // new page. This routine will call |self.actor.disk_mgr| to allocate a page.
   //
-  // Note: This methods only returns the page in memory without syncing to
-  // disk, the caller needs to flush it (even if no data are written to the
-  // page) if one wish to read from it to avoid unexpected EOF.
-  //
   // TODO: Update new page's metadata?
   pub fn new_page(&mut self) -> std::io::Result<&mut T> {
     info!("New page");
@@ -408,11 +404,15 @@ mod tests {
       let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
       for id in 1..=10 as PageId {
         let page = bpm.new_page().unwrap();
-        reinterpret::write_i32(&mut page.data_mut()[8..], id);
-        // Only flush pages with |ID % 2 == 0|;
         assert_eq!(id, page.page_id());
-        assert!(bpm.unpin_page(id, /*is_dirty=*/ true).is_ok());
+
+        // Only flush pages with |ID % 2 == 0|;
+        if id % 2 == 0 {
+          reinterpret::write_i32(&mut page.data_mut()[8..], id);
+        }
+        assert!(bpm.unpin_page(id, /*is_dirty=*/ id % 2 == 0).is_ok());
       }
+
       // Delete pages with |ID > 5|.
       for id in 6..=10 {
         assert!(bpm.delete_page(id).is_ok());
@@ -423,7 +423,8 @@ mod tests {
       let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
       for id in 1..=5 as PageId {
         let page = bpm.fetch_page(id).unwrap();
-        assert_eq!(id, reinterpret::read_i32(&page.data()[8..]));
+        assert_eq!(if id % 2 == 0 {id} else {0},
+                   reinterpret::read_i32(&page.data()[8..]));
       }
       for i in 6..=10 {
         assert!(bpm.fetch_page(i).is_err());
