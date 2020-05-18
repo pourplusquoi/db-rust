@@ -163,47 +163,55 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
                        &mut self.data)
   }
 
-  // Prepares and pins a new page and returns a (PageId, Page) pair. If
-  // |maybe_id| is None, asks |actor.disk_mgr| to allocate a new page ID. If
-  // |need_reset| is |true|, resets the page with 0's.
+  // Prepares and pins a new page and returns a (PageId, Page) pair.
+  // If |maybe_id| is None, asks |actor.disk_mgr| to allocate a new page ID.
+  // If |need_reset| is |true|, resets the page with 0's. Returns error if the
+  // old page fails to be flushed to disk.
   fn prepare_page<'a>(
       maybe_id: Option<PageId>,
       need_reset: bool,
       actor: &mut Actor<R>,
       data: &'a mut Data<T>) -> std::io::Result<&'a mut T> {
-    if data.free_list.is_empty() {
-      info!("Free page unavaible, finding replacement");
-      match actor.replacer.victim() {
-        Some(idx) => {
-          data.free_list.push(idx);
-        },
-        None => {
-          return Err(not_found("Replacer cannot find a victim"));
-        },
+    let either = match data.free_list.last().map(|x| *x) {
+      Some(idx) => Ok(Either::FromFreeList(idx)),
+      None => {
+        info!("Free page unavaible, finding replacement");
+        match actor.replacer.victim() {
+          Some(idx) => Ok(Either::FromReplacer(idx)),
+          None => Err(not_found("Replacer cannot find a victim")),
+        }
       }
-    }
-    match data.free_list.last().map(|x| *x) {
-      // If flushing the old page fails, should not retry, because it may cause
-      // stale data get flushed to disk.
-      Some(idx) => {
-        // Step 1: Remove the old page from page table if exists.
-        let page = &mut data.pages[idx];
-        data.page_table.remove(&page.page_id());
-        // Step 2: Remove the old page from free list.
-        data.free_list.pop();
-        // Step 3: Flush the old page to disk.
-        Self::flush_page_inl(&mut actor.disk_mgr, page).log();
-        // Step 4: Update the page ID.
+    }?;
+    let idx = *either.borrow();
+    let page = &mut data.pages[idx];
+    match Self::flush_page_inl(&mut actor.disk_mgr, page) {
+      Ok(()) => {  // On flush success.
+        match either {
+          Either::FromFreeList(_) => {
+            data.free_list.pop();
+          },
+          Either::FromReplacer(_) => {
+            data.page_table.remove(&page.page_id());
+          },
+        }
         let allocate = || {
           info!("Allocate page ID");
           actor.disk_mgr.allocate_page()
         };
         page.set_page_id(maybe_id.unwrap_or_else(allocate));
-        // Step 5: Insert the new page ID into page table.
         data.page_table.insert(page.page_id(), idx);
         Ok(page)
       },
-      None => Err(invalid_data("Should not reach here")),
+      Err(e) => {  // On flush failure.
+        match either {
+          Either::FromFreeList(_) => (),
+          Either::FromReplacer(idx) => {
+            // Insert page back to replacer if flush fails. 
+            actor.replacer.insert(idx);
+          },
+        }
+        Err(e)
+      },
     }.and_then(|page| {
       if need_reset {
         Self::reset_page(page);
@@ -251,6 +259,20 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     info!("Reset page");
     for byte in page.data_mut().iter_mut() {
       *byte = 0;
+    }
+  }
+}
+
+enum Either<T> {
+  FromFreeList(T),
+  FromReplacer(T),
+}
+
+impl<T> Either<T> {
+  pub fn borrow(&self) -> &T {
+    match self {
+      &Self::FromFreeList(ref v) => v,
+      &Self::FromReplacer(ref v) => v,
     }
   }
 }
