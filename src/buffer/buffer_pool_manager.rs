@@ -4,12 +4,11 @@
 
 use crate::buffer::lru_replacer::LRUReplacer;
 use crate::buffer::replacer::Replacer;
-use crate::common::config::INVALID_PAGE_ID;
+use crate::common::config::HEADER_PAGE_ID;
 use crate::common::config::PageId;
 use crate::common::error::*;
 use crate::disk::disk_manager::DiskManager;
 use crate::logging::error_logging::ErrorLogging;
-use crate::page::table_page::TablePage;
 use crate::page::page::Page;
 use std::clone::Clone;
 use std::collections::HashMap;
@@ -56,6 +55,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   // exists in |self.data.page_table|; otherwise, loads the page from disk.
   pub fn fetch_page(&mut self, page_id: PageId) -> std::io::Result<&mut T> {
     info!("Fetch page; page_id = {}", page_id);
+    validate(page_id)?;
     match self.data.page_table.get(&page_id) {
       Some(&idx) => {
         info!("Found page in table, will pin the page; idx = {}", idx);
@@ -78,7 +78,7 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   }
 
   // Unpins the page with specified |page_id|. |is_dirty| sets the dirty flag
-  // of this page. Returns |false| if the page pin count <= 0.
+  // of this page. Returns |InvalidData| if the page pin count <= 0.
   pub fn unpin_page(&mut self,
                     page_id: PageId,
                     is_dirty: bool) -> std::io::Result<()> {
@@ -102,13 +102,11 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
     }
   }
 
-  // Flushes one page with specified |page_id| to disk. Returns |false| if no
-  // such page exists in |self.data.page_table|.
+  // Flushes one page with specified |page_id| to disk. Returns |NotFound| if
+  // no such page exists in |self.data.page_table|.
   pub fn flush_page(&mut self, page_id: PageId) -> std::io::Result<()> {
     info!("Flush page; page_id = {}", page_id);
-    if page_id == INVALID_PAGE_ID {
-      return Err(invalid_input("Page ID is invalid"));
-    }
+    validate(page_id)?;
     match self.data.page_table.get(&page_id) {
       Some(&idx) =>
           Self::flush_page_inl(&mut self.actor.disk_mgr,
@@ -135,17 +133,17 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
   // routine will call |self.actor.disk_mgr| to deallocate the page.
   pub fn delete_page(&mut self, page_id: PageId) -> std::io::Result<()> {
     info!("Delete page; page_id = {}", page_id);
-    match self.data.page_table.remove(&page_id) {
-      Some(idx) => {
-        // If it fails on flushing the page, it will still be added to
-        // |self.data.free_list|, will retry flushing later when it is selected
-        // for accommodation for a new page.
-        self.data.free_list.push(idx);
+    validate(page_id)?;
+    match self.data.page_table.get(&page_id) {
+      Some(&idx) => {
+        // If a page is being deleted, there is no point of flushing it.
         let page = &mut self.data.pages[idx];
         if page.pin_count() > 0 {
           return Err(invalid_data("Cannot delete pinned page"));
         }
-        Self::flush_page_inl(&mut self.actor.disk_mgr, page)?;
+        page.set_is_dirty(false);
+        self.data.free_list.push(idx);
+        self.data.page_table.remove(&page_id);
       },
       None => (),
     }
@@ -155,6 +153,11 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   // Creates a new page. User should call this method if one needs to create a
   // new page. This routine will call |self.actor.disk_mgr| to allocate a page.
+  //
+  // Note: This methods only returns the page in memory without syncing to
+  // disk, the caller needs to flush it (even if no data are written to the
+  // page) if one wish to read from it to avoid unexpected EOF.
+  //
   // TODO: Update new page's metadata?
   pub fn new_page(&mut self) -> std::io::Result<&mut T> {
     info!("New page");
@@ -184,18 +187,16 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
       }
     }
     match data.free_list.last().map(|x| *x) {
-      // If flushing the old page fails, the following operations will stop
-      // early, in which case, the old page remains dirty and inside
-      // |data.free_list|. Will retry flushing next time when it is selected
-      // for accommodation for a new page.
+      // If flushing the old page fails, should not retry, because it may cause
+      // stale data get flushed to disk.
       Some(idx) => {
         // Step 1: Remove the old page from page table if exists.
         let page = &mut data.pages[idx];
         data.page_table.remove(&page.page_id());
-        // Step 2: Flush the old page to disk.
-        Self::flush_page_inl(&mut actor.disk_mgr, page)?;
-        // Step 3: Remove the old page from free list.
+        // Step 2: Remove the old page from free list.
         data.free_list.pop();
+        // Step 3: Flush the old page to disk.
+        Self::flush_page_inl(&mut actor.disk_mgr, page).log();
         // Step 4: Update the page ID.
         let allocate = || {
           info!("Allocate page ID");
@@ -207,12 +208,12 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
         Ok(page)
       },
       None => Err(invalid_data("Should not reach here")),
-    }.map(|page| {
+    }.and_then(|page| {
       if need_reset {
         Self::reset_page(page);
       }
       page.pin();
-      page
+      Ok(page)
     })
   }
 
@@ -291,9 +292,17 @@ impl<R> Actor<R> where R: Replacer<usize> {
   }
 }
 
+fn validate(page_id: PageId) -> std::io::Result<()> {
+  if page_id < HEADER_PAGE_ID {
+    return Err(invalid_input("Page ID is invalid"));
+  }
+  Ok(())
+}
+
 #[cfg(test)]
 mod tests {
   use crate::common::reinterpret;
+  use crate::page::table_page::TablePage;
   use crate::testing::file_deleter::FileDeleter;
   use super::*;
 
@@ -343,5 +352,78 @@ mod tests {
     // Check read content.
     let page = maybe_page.unwrap();
     assert_eq!("Hello", reinterpret::read_str(&page.data()[8..]));
+  }
+
+  #[test]
+  fn new_and_delete() {
+    let file_path = "/tmp/buffer_pool_manager.2.testfile";
+
+    // Test file deleter with RAII.
+    let mut file_deleter = FileDeleter::new();
+    file_deleter.push(&file_path);
+
+    let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
+    for i in 1..=10 {
+      assert_eq!(i, bpm.new_page().unwrap().page_id());
+    }
+    assert!(bpm.new_page().is_err());
+    assert!(bpm.delete_page(0).is_err());
+    assert!(bpm.delete_page(1).is_err());
+
+    // Unpin page 1 and it gets replaced to disk, but its page ID is still
+    // occupied, therefore, page 11 is allocated.
+    assert!(bpm.unpin_page(1, /*is_dirty=*/ true).is_ok());
+    assert_eq!(11, bpm.new_page().unwrap().page_id());
+
+    // Delete page 1 and unpin page 11, when |new_page| is called, page 11 gets
+    // replaced to disk. Since page 1 is deallocated, its page ID is reused.
+    assert!(bpm.delete_page(1).is_ok());
+    assert!(bpm.unpin_page(11, /*is_dirty=*/ true).is_ok());
+    assert_eq!(1, bpm.new_page().unwrap().page_id());
+
+    assert!(bpm.delete_page(11).is_ok());
+    for i in 6..=10 {
+      assert!(bpm.unpin_page(i, /*is_dirty=*/ true).is_ok());
+      assert!(bpm.delete_page(i).is_ok());
+    }
+    for i in 6..=10 {
+      assert!(bpm.fetch_page(i).is_err());
+      assert_eq!(i, bpm.new_page().unwrap().page_id());
+    }
+  }
+
+  #[test]
+  fn drop_flushes_all_pages() {
+    let file_path = "/tmp/buffer_pool_manager.3.testfile";
+
+    // Test file deleter with RAII.
+    let mut file_deleter = FileDeleter::new();
+    file_deleter.push(&file_path);
+
+    {
+      let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
+      for id in 1..=10 as PageId {
+        let page = bpm.new_page().unwrap();
+        reinterpret::write_i32(&mut page.data_mut()[8..], id);
+        // Only flush pages with |ID % 2 == 0|;
+        assert_eq!(id, page.page_id());
+        assert!(bpm.unpin_page(id, /*is_dirty=*/ true).is_ok());
+      }
+      // Delete pages with |ID > 5|.
+      for id in 6..=10 {
+        assert!(bpm.delete_page(id).is_ok());
+      }
+    }  // Drops bpm.
+
+    {
+      let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
+      for id in 1..=5 as PageId {
+        let page = bpm.fetch_page(id).unwrap();
+        assert_eq!(id, reinterpret::read_i32(&page.data()[8..]));
+      }
+      for i in 6..=10 {
+        assert!(bpm.fetch_page(i).is_err());
+      }
+    }  // Drops bpm.
   }
 }

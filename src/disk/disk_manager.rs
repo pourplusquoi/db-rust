@@ -105,6 +105,9 @@ impl DiskManager {
     self.metadata.remove_free()
   }
 
+  // |HEADER_PAGE_ID| is the smallest possible page ID, because page 0 is
+  // reserved by DiskManager for bookkeeping. Therefore, the caller needs
+  // to ensure that |page_id| >= |HEADER_PAGE_ID|.
   pub fn deallocate_page(&mut self, page_id: PageId) {
     self.metadata.insert_free(page_id);
   }
@@ -189,6 +192,10 @@ fn update_checksum(data: &mut [u8]) {
   reinterpret::write_u64(data, compute_checksum(&data[8..]));
 }
 
+// Note: It is possible that the first 8 bytes (aka. checksum) is 0, in which
+// case the page is empty and has not been written to. However, it is
+// undesirable, because the caller should always flush data before read.
+// Otherwise, one may encounter unexpected EOF. So it is not allowed here.
 fn validate_checksum(data: &[u8]) -> std::io::Result<()> {
   match reinterpret::read_u64(data) == compute_checksum(&data[8..]) {
     true => Ok(()),
