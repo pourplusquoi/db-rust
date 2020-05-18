@@ -79,7 +79,9 @@ impl<T, R> BufferPoolManager<T, R> where T: Page + Clone, R: Replacer<usize> {
 
   // Unpins the page with specified |page_id|. |is_dirty| sets the dirty flag
   // of this page. Returns |false| if the page pin count <= 0.
-  pub fn unpin_page(&mut self, page_id: PageId, is_dirty: bool) -> std::io::Result<()> {
+  pub fn unpin_page(&mut self,
+                    page_id: PageId,
+                    is_dirty: bool) -> std::io::Result<()> {
     info!("Unpin page; page_id = {}", page_id);
     match self.data.page_table.get(&page_id) {
       Some(&idx) => {
