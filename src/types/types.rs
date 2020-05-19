@@ -1,9 +1,9 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
-use crate::data::value::Value;
+use crate::types::value::Value;
 
-pub enum ValueType {
+pub enum Type {
   Boolean(i8),
   TinyInt(i8),
   SmallInt(i16),
@@ -34,7 +34,7 @@ impl Varlen {
   }
 }
 
-impl ValueType {
+impl Type {
   pub fn data(&self) -> Option<&[u8]> {
     match self {
       Self::Varchar(varlen) => match varlen {

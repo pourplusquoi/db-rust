@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
-use crate::data::value_type::CmpBool;
-use crate::data::value_type::ValueType;
+use crate::types::types::CmpBool;
+use crate::types::types::Type;
 
 pub struct Value {
-  data: ValueType,
-  size: Option<u32>,  // Only set iff |type| is Varchar.
+  content: Type,
+  size: Option<u32>,  // Only set iff |content| is Varchar.
 }
 
 pub fn cmp_bool(val: bool) -> CmpBool {
@@ -17,23 +17,23 @@ pub fn cmp_bool(val: bool) -> CmpBool {
 }
 
 impl Value {
-  pub fn new(data: ValueType) -> Self {
+  pub fn new(content: Type) -> Self {
     Value {
-      size: match &data {
+      size: match &content {
         // Assuming the length of string fits in u32.
-        ValueType::Varchar(val) => Some(val.len() as u32),
+        Type::Varchar(val) => Some(val.len() as u32),
         _ => None,
       },
-      data: data,
+      content: content,
     }
   }
 
-  pub fn borrow(&self) -> &ValueType {
-    &self.data
+  pub fn borrow(&self) -> &Type {
+    &self.content
   }
 
-  pub fn borrow_mut(&mut self) -> &mut ValueType {
-    &mut self.data
+  pub fn borrow_mut(&mut self) -> &mut Type {
+    &mut self.content
   }
 
   // TODO: Implement this.
