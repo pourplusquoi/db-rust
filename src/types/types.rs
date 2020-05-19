@@ -1,7 +1,9 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
+use crate::types::limits::*;
 use crate::types::value::Value;
+use std::clone::Clone;
 
 #[derive(Clone)]
 pub enum Types<'a> {
@@ -17,8 +19,59 @@ pub enum Types<'a> {
 
 #[derive(Clone)]
 pub enum Varlen<'a> {
-  Owned(String),
-  Borrowed(&'a str),
+  Owned(Str<String>),
+  Borrowed(Str<&'a str>),
+}
+
+#[derive(Clone)]
+pub enum Str<T: Clone> {
+  Val(T),
+  MaxVal,
+}
+
+impl Str<String> {
+  pub fn len(&self) -> usize {
+    match self {
+      Str::Val(s) => s.len(),
+      Str::MaxVal => 0,
+    }
+  }
+
+  pub fn as_bytes(&self) -> Option<&[u8]> {
+    match self {
+      Str::Val(s) => Some(s.as_bytes()),
+      Str::MaxVal => None,
+    }
+  }
+
+  pub fn as_bytes_mut(&mut self) -> Option<&mut [u8]> {
+    match self {
+      Str::Val(s) => unsafe {
+        Some(s.as_bytes_mut())
+      },
+      Str::MaxVal => None,
+    }
+  }
+}
+
+impl Str<&str> {
+  pub fn len(&self) -> usize {
+    match self {
+      Str::Val(s) => s.len(),
+      Str::MaxVal => 0,
+    }
+  }
+
+  pub fn as_bytes(&self) -> Option<&[u8]> {
+    match self {
+      Str::Val(s) => Some(s.as_bytes()),
+      Str::MaxVal => None,
+    }
+  }
+
+  pub fn as_bytes_mut(&mut self) -> Option<&mut [u8]> {
+    None
+  }
 }
 
 impl<'a> Varlen<'a> {
@@ -34,8 +87,8 @@ impl<'a> Types<'a> {
   pub fn data(&self) -> Option<&[u8]> {
     match self {
       Self::Varchar(varlen) => match varlen {
-        Varlen::Owned(s) => Some(s.as_bytes()),
-        Varlen::Borrowed(s) => Some(s.as_bytes()),
+        Varlen::Owned(s) => s.as_bytes(),
+        Varlen::Borrowed(s) => s.as_bytes(),
       },
       _ => None,
     }
@@ -44,9 +97,7 @@ impl<'a> Types<'a> {
   pub fn data_mut(&mut self) -> Option<&mut [u8]> {
     match self {
       Self::Varchar(varlen) => match varlen {
-        Varlen::Owned(s) => unsafe {
-          Some(s.as_bytes_mut())
-        },
+        Varlen::Owned(s) => s.as_bytes_mut(),
         Varlen::Borrowed(_) => None,
       },
       _ => None,
@@ -88,7 +139,7 @@ impl<'a> Types<'a> {
   }
 
   pub fn type_id(&self) -> String {
-    String::from(match self {
+    match self {
       Self::Boolean(_) => "BOOLEAN",
       Self::TinyInt(_) => "TINYINT",
       Self::SmallInt(_) => "SMALLINT",
@@ -97,7 +148,7 @@ impl<'a> Types<'a> {
       Self::Decimal(_) => "DECIMAL",
       Self::Timestamp(_) => "TIMESTAMP",
       Self::Varchar(_) => "VARCHAR",
-    })
+    }.to_string()
   }
 
   pub fn boolean() -> Self {
@@ -128,13 +179,61 @@ impl<'a> Types<'a> {
     Self::Timestamp(0)
   }
 
-  // pub fn varchar_owned() -> Self {
-  //   Self::Varchar(Varlen::Owned(String::from("")))
-  // }
+  pub fn owned(s: String) -> Self {
+    Self::Varchar(Varlen::Owned(Str::Val(s)))
+  }
 
-  // pub fn min_val(Self) -> Self {}
+  pub fn borrowed(s: &'a str) -> Self {
+    Self::Varchar(Varlen::Borrowed(Str::Val(s)))
+  }
 
-  // pub fn max_val(Self) -> Self {}
+  pub fn min_owned() -> Self {
+    Self::Varchar(Varlen::Owned(Str::Val("".to_string())))
+  }
+
+  pub fn max_owned() -> Self {
+    Self::Varchar(Varlen::Owned(Str::MaxVal))
+  }
+
+  pub fn min_borrowed() -> Self {
+    Self::Varchar(Varlen::Borrowed(Str::Val("")))
+  }
+
+  pub fn max_borrowed() -> Self {
+    Self::Varchar(Varlen::Borrowed(Str::MaxVal))
+  }
+
+  pub fn min_val(self) -> Self {
+    match self {
+      Self::Boolean(_) => Self::Boolean(0),
+      Self::TinyInt(_) => Self::TinyInt(PELOTON_INT8_MIN),
+      Self::SmallInt(_) => Self::SmallInt(PELOTON_INT16_MIN),
+      Self::Integer(_) => Self::Integer(PELOTON_INT32_MIN),
+      Self::BigInt(_) => Self::BigInt(PELOTON_INT64_MIN),
+      Self::Decimal(_) => Self::Decimal(PELOTON_DECIMAL_MIN),
+      Self::Timestamp(_) => Self::Timestamp(0),
+      Self::Varchar(vc) => match vc {
+        Varlen::Owned(_) => Self::min_owned(),
+        Varlen::Borrowed(_) => Self::min_borrowed(),
+      },
+    }
+  }
+
+  pub fn max_val(self) -> Self {
+    match self {
+      Self::Boolean(_) => Self::Boolean(1),
+      Self::TinyInt(_) => Self::TinyInt(PELOTON_INT8_MAX),
+      Self::SmallInt(_) => Self::SmallInt(PELOTON_INT16_MAX),
+      Self::Integer(_) => Self::Integer(PELOTON_INT32_MAX),
+      Self::BigInt(_) => Self::BigInt(PELOTON_INT64_MAX),
+      Self::Decimal(_) => Self::Decimal(PELOTON_DECIMAL_MAX),
+      Self::Timestamp(_) => Self::Timestamp(PELOTON_TIMESTAMP_MAX),
+      Self::Varchar(vc) => match vc {
+        Varlen::Owned(_) => Self::max_owned(),
+        Varlen::Borrowed(_) => Self::max_borrowed(),
+      },
+    }
+  }
 }
 
 pub trait Operation : Sized {
