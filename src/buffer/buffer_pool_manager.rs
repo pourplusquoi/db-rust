@@ -319,6 +319,7 @@ fn validate(page_id: PageId) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+  use crate::common::config::CHECKSUM_SIZE;
   use crate::common::reinterpret;
   use crate::page::table_page::TablePage;
   use crate::testing::file_deleter::FileDeleter;
@@ -345,7 +346,7 @@ mod tests {
     assert_eq!(HEADER_PAGE_ID, page.page_id());
 
     // Change content in page one.
-    reinterpret::write_str(&mut page.data_mut()[8..], "Hello");
+    reinterpret::write_str(&mut page.data_mut()[CHECKSUM_SIZE..], "Hello");
 
     // Create 9 new pages.
     for i in 1..10 {
@@ -373,7 +374,7 @@ mod tests {
 
     // Check read content.
     let page = maybe_page.unwrap();
-    assert_eq!("Hello", reinterpret::read_str(&page.data()[8..]));
+    assert_eq!("Hello", reinterpret::read_str(&page.data()[CHECKSUM_SIZE..]));
   }
 
   #[test]
@@ -433,7 +434,7 @@ mod tests {
 
         // Only flush pages with |ID % 2 == 0|;
         if id % 2 == 0 {
-          reinterpret::write_i32(&mut page.data_mut()[8..], id);
+          reinterpret::write_i32(&mut page.data_mut()[CHECKSUM_SIZE..], id);
         }
         assert!(bpm.unpin_page(id, /*is_dirty=*/ id % 2 == 0).is_ok());
       }
@@ -450,7 +451,7 @@ mod tests {
         let id = idx + HEADER_PAGE_ID;
         let page = bpm.fetch_page(id).unwrap();
         assert_eq!(if id % 2 == 0 {id} else {0},
-                   reinterpret::read_i32(&page.data()[8..]));
+                   reinterpret::read_i32(&page.data()[CHECKSUM_SIZE..]));
       }
       for idx in 5..10 {
         assert!(bpm.fetch_page(idx + HEADER_PAGE_ID).is_err());
