@@ -5,7 +5,6 @@
 
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
-use crate::common::config::HEADER_PAGE_ID;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::error::*;
 use crate::common::reinterpret;
@@ -40,9 +39,7 @@ impl Drop for DiskManager {
     self.metadata.drop();
     // Unable to handle errors on destruction.
     self.db_io.seek(SeekFrom::Start(0)).log();
-    Self::write_inl(&mut self.db_io,
-                    self.metadata.reserved.data_mut(),
-                    PAGE_SIZE).log();
+    write(&mut self.db_io, self.metadata.reserved.data_mut(), PAGE_SIZE).log();
   }
 }
 
@@ -64,9 +61,7 @@ impl DiskManager {
   fn init(&mut self) -> std::io::Result<()> {
     // Read only if the file is not empty.
     if self.db_io.metadata()?.len() > 0 {
-      Self::read_inl(&mut self.db_io,
-                     self.metadata.reserved.data_mut(),
-                     PAGE_SIZE)?;
+      read(&mut self.db_io, self.metadata.reserved.data_mut(), PAGE_SIZE)?;
     }
     let mut records = self.metadata.reserved.read_records();
     // If |records| is empty, the file is empty, the next free page is 1.
@@ -86,7 +81,7 @@ impl DiskManager {
                     data: &mut [u8]) -> std::io::Result<()> {
     let offset = (page_id as u64) * (PAGE_SIZE as u64);
     self.db_io.seek(SeekFrom::Start(offset))?;
-    Self::write_inl(&mut self.db_io, data, PAGE_SIZE)?;
+    write(&mut self.db_io, data, PAGE_SIZE)?;
     self.db_io.sync_data()?;
     Ok(())
   }
@@ -109,7 +104,7 @@ impl DiskManager {
     }
 
     self.db_io.seek(SeekFrom::Start(offset))?;
-    Self::read_inl(&mut self.db_io, data, PAGE_SIZE)?;
+    read(&mut self.db_io, data, PAGE_SIZE)?;
     Ok(())
   }
 
@@ -122,38 +117,40 @@ impl DiskManager {
   pub fn deallocate_page(&mut self, page_id: PageId) {
     self.metadata.insert_free(page_id);
   }
+}
 
-  fn write_inl(file: &mut File,
-               data: &mut [u8],
-               size: usize) -> std::io::Result<()> {
-    update_checksum(data);
-    let mut pos = 0;
-    while pos < size {
-      let bytes_written = file.write(&data[pos..])?;
-      if bytes_written == 0 {
-        return Err(Error::new(ErrorKind::WriteZero,
-                              "I/O error: wrote 0 byte"));
-      }
+pub fn write(file: &mut File,
+             data: &mut [u8],
+             size: usize) -> std::io::Result<()> {
+  update_checksum(data)?;
+  let mut pos = 0;
+  while pos < size {
+    let bytes_written = file.write(&data[pos..])?;
+    if bytes_written == 0 {
+      return Err(Error::new(ErrorKind::WriteZero,
+                            "I/O error: wrote 0 byte"));
+    }
       pos += bytes_written;
-    }
-    Ok(())
   }
+  println!("write: {:?}", data);
+  Ok(())
+}
 
-  fn read_inl(file: &mut File,
-              data: &mut [u8],
-              size: usize) -> std::io::Result<()> {
-    let mut pos = 0;
-    while pos < size {
-      let bytes_read = file.read(&mut data[pos..])?;
-      if bytes_read == 0 {
-        return Err(Error::new(ErrorKind::UnexpectedEof,
-                              "I/O error: read 0 byte"));
-      }
-      pos += bytes_read;
+pub fn read(file: &mut File,
+            data: &mut [u8],
+            size: usize) -> std::io::Result<()> {
+  let mut pos = 0;
+  while pos < size {
+    let bytes_read = file.read(&mut data[pos..])?;
+    if bytes_read == 0 {
+      return Err(Error::new(ErrorKind::UnexpectedEof,
+                            "I/O error: read 0 byte"));
     }
-    validate_checksum(data)?;
-    Ok(())
+    pos += bytes_read;
   }
+  println!("read: {:?}", data);
+  validate_checksum(data)?;
+  Ok(())
 }
 
 struct Metadata {
@@ -199,18 +196,25 @@ impl Metadata {
   }
 }
 
-fn update_checksum(data: &mut [u8]) {
+fn update_checksum(data: &mut [u8]) -> std::io::Result<()> {
+  if data.len() < 8 {
+    return Err(invalid_input("Data length should >= 8"));
+  }
   reinterpret::write_u64(data, compute_checksum(&data[8..]));
+  Ok(())
 }
 
 fn validate_checksum(data: &[u8]) -> std::io::Result<()> {
+  if data.len() < 8 {
+    return Err(invalid_input("Data length should >= 8"));
+  }
   let checksum = reinterpret::read_u64(data);
   if checksum == 0 {
     return Ok(());  // The page is empty, it is a success.
   }
   match checksum == compute_checksum(&data[8..]) {
     true => Ok(()),
-    false => Err(invalid_data("Page corrupted")),
+    false => Err(invalid_data("Data corrupted")),
   }
 }
 
