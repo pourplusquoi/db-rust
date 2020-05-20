@@ -342,14 +342,14 @@ mod tests {
     assert!(maybe_page.is_ok());
 
     let page = maybe_page.unwrap();
-    assert_eq!(1, page.page_id(), "Page 0 is reserved");
+    assert_eq!(HEADER_PAGE_ID, page.page_id());
 
     // Change content in page one.
     reinterpret::write_str(&mut page.data_mut()[8..], "Hello");
 
     // Create 9 new pages.
     for i in 1..10 {
-      assert_eq!(i + 1, bpm.new_page().unwrap().page_id());
+      assert_eq!(i + HEADER_PAGE_ID, bpm.new_page().unwrap().page_id());
     }
 
     // All the pages are pinned, the buffer pool is full.
@@ -358,13 +358,13 @@ mod tests {
     }
 
     // Upin the first five pages, add them to LRU list, set as dirty.
-    for i in 1..6 {
-      assert!(bpm.unpin_page(i, /*is_dirty=*/ true).is_ok());
+    for i in 0..5 {
+      assert!(bpm.unpin_page(i + HEADER_PAGE_ID, /*is_dirty=*/ true).is_ok());
     }
 
     // We have 5 empty slots in LRU list, evict page zero out of buffer pool.
     for i in 10..14 {
-      assert_eq!(i + 1, bpm.new_page().unwrap().page_id());
+      assert_eq!(i + HEADER_PAGE_ID, bpm.new_page().unwrap().page_id());
     }
 
     // Fetch page one again.
@@ -385,32 +385,34 @@ mod tests {
     file_deleter.push(&file_path);
 
     let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
-    for i in 1..=10 {
-      assert_eq!(i, bpm.new_page().unwrap().page_id());
+    for i in 0..10 {
+      assert_eq!(i + HEADER_PAGE_ID, bpm.new_page().unwrap().page_id());
     }
     assert!(bpm.new_page().is_err());
-    assert!(bpm.delete_page(0).is_err());
-    assert!(bpm.delete_page(1).is_err());
+    assert!(bpm.delete_page(HEADER_PAGE_ID - 1).is_err());
+    assert!(bpm.delete_page(HEADER_PAGE_ID).is_err());
 
-    // Unpin page 1 and it gets replaced to disk, but its page ID is still
-    // occupied, therefore, page 11 is allocated.
-    assert!(bpm.unpin_page(1, /*is_dirty=*/ true).is_ok());
-    assert_eq!(11, bpm.new_page().unwrap().page_id());
+    // Unpin page |HEADER_PAGE_ID| and it gets replaced to disk, but its page
+    // ID is still occupied, therefore, page |10 + HEADER_PAGE_ID| is
+    // allocated.
+    assert!(bpm.unpin_page(HEADER_PAGE_ID, /*is_dirty=*/ true).is_ok());
+    assert_eq!(10 + HEADER_PAGE_ID, bpm.new_page().unwrap().page_id());
 
-    // Delete page 1 and unpin page 11, when |new_page| is called, page 11 gets
-    // replaced to disk. Since page 1 is deallocated, its page ID is reused.
-    assert!(bpm.delete_page(1).is_ok());
-    assert!(bpm.unpin_page(11, /*is_dirty=*/ true).is_ok());
-    assert_eq!(1, bpm.new_page().unwrap().page_id());
+    // Delete page |HEADER_PAGE_ID| and unpin page |10 + HEADER_PAGE_ID|, when
+    // |new_page| is called, page |10 + HEADER_PAGE_ID| gets replaced to disk.
+    // Since page |HEADER_PAGE_ID| is deallocated, its page ID is reused.
+    assert!(bpm.delete_page(HEADER_PAGE_ID).is_ok());
+    assert!(bpm.unpin_page(10 + HEADER_PAGE_ID, /*is_dirty=*/ true).is_ok());
+    assert_eq!(HEADER_PAGE_ID, bpm.new_page().unwrap().page_id());
 
-    assert!(bpm.delete_page(11).is_ok());
-    for i in 6..=10 {
-      assert!(bpm.unpin_page(i, /*is_dirty=*/ true).is_ok());
-      assert!(bpm.delete_page(i).is_ok());
+    assert!(bpm.delete_page(10 + HEADER_PAGE_ID).is_ok());
+    for i in 5..10 {
+      assert!(bpm.unpin_page(i + HEADER_PAGE_ID, /*is_dirty=*/ true).is_ok());
+      assert!(bpm.delete_page(i + HEADER_PAGE_ID).is_ok());
     }
-    for i in 6..=10 {
-      assert!(bpm.fetch_page(i).is_err());
-      assert_eq!(i, bpm.new_page().unwrap().page_id());
+    for i in 5..10 {
+      assert!(bpm.fetch_page(i + HEADER_PAGE_ID).is_err());
+      assert_eq!(i + HEADER_PAGE_ID, bpm.new_page().unwrap().page_id());
     }
   }
 
@@ -424,7 +426,8 @@ mod tests {
 
     {
       let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
-      for id in 1..=10 as PageId {
+      for idx in 0..10 as PageId {
+        let id = idx + HEADER_PAGE_ID;
         let page = bpm.new_page().unwrap();
         assert_eq!(id, page.page_id());
 
@@ -435,21 +438,22 @@ mod tests {
         assert!(bpm.unpin_page(id, /*is_dirty=*/ id % 2 == 0).is_ok());
       }
 
-      // Delete pages with |ID > 5|.
-      for id in 6..=10 {
-        assert!(bpm.delete_page(id).is_ok());
+      // Delete pages with |ID >= 5 + HEADER_PAGE_ID|.
+      for idx in 5..10 {
+        assert!(bpm.delete_page(idx + HEADER_PAGE_ID).is_ok());
       }
     }  // Drops bpm.
 
     {
       let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
-      for id in 1..=5 as PageId {
+      for idx in 0..5 as PageId {
+        let id = idx + HEADER_PAGE_ID;
         let page = bpm.fetch_page(id).unwrap();
         assert_eq!(if id % 2 == 0 {id} else {0},
                    reinterpret::read_i32(&page.data()[8..]));
       }
-      for i in 6..=10 {
-        assert!(bpm.fetch_page(i).is_err());
+      for idx in 5..10 {
+        assert!(bpm.fetch_page(idx + HEADER_PAGE_ID).is_err());
       }
     }  // Drops bpm.
   }

@@ -5,6 +5,7 @@
 
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
+use crate::common::config::HEADER_PAGE_ID;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::error::*;
 use crate::common::reinterpret;
@@ -116,9 +117,8 @@ impl DiskManager {
     self.metadata.remove_free()
   }
 
-  // |HEADER_PAGE_ID| is the smallest possible page ID, because page 0 is
-  // reserved by DiskManager for bookkeeping. Therefore, the caller needs
-  // to ensure that |page_id| >= |HEADER_PAGE_ID|.
+  // |HEADER_PAGE_ID| is the smallest possible page ID. Therefore, the caller
+  // needs to ensure that |page_id| >= |HEADER_PAGE_ID|.
   pub fn deallocate_page(&mut self, page_id: PageId) {
     self.metadata.insert_free(page_id);
   }
