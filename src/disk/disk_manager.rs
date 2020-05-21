@@ -3,7 +3,6 @@
 // provides a logical file layer within the context of a database management
 // system. Page ID is allocated from 0.
 
-use crate::common::config::BITMAP_FILE_SUFFIX;
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
 use crate::common::error::*;
@@ -20,6 +19,8 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
+
+pub const BITMAP_FILE_SUFFIX: &'static str = ".bitmap";
 
 // TODO: Right now, DiskManager does not support creating directories, i.e.
 // the |db_file| being passed to |DiskManager::new| has to be under an existing

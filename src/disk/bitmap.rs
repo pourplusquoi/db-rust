@@ -50,16 +50,13 @@ impl Bitmap {
     match self.free.iter().nth(0) {
       Some(&word_idx) => {
         let word = self.data()[word_idx];
-        let bit_idx = {
-          if word & 128 == 0 { 0 }
-          else if word & 64 == 0 { 1 }
-          else if word & 32 == 0 { 2 }
-          else if word & 16 == 0 { 3 }
-          else if word & 8 == 0 { 4 }
-          else if word & 4 == 0 { 5 }
-          else if word & 2 == 0 { 6 }
-          else { 7 }
-        };
+        // It is safe to unwrap here, because |word| < |FULL_WORD| always
+        // holds.
+        let bit_idx = (0..BITS_PER_WORD).rev()
+                          .skip_while(|x| word & (1 << x) > 0)
+                          .nth(0)
+                          .map(|x| BITS_PER_WORD - 1 - x)
+                          .unwrap();
         word_idx * BITS_PER_WORD + bit_idx
       },
       None => self.data().len() * BITS_PER_WORD,

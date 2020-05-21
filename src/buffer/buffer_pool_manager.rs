@@ -319,9 +319,9 @@ fn validate(page_id: PageId) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-  use crate::common::config::BITMAP_FILE_SUFFIX;
   use crate::common::config::CHECKSUM_SIZE;
   use crate::common::reinterpret;
+  use crate::disk::disk_manager::BITMAP_FILE_SUFFIX;
   use crate::page::table_page::TablePage;
   use crate::testing::file_deleter::FileDeleter;
   use super::*;
