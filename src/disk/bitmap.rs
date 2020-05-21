@@ -28,7 +28,6 @@ impl Drop for Bitmap {
 
 impl Bitmap {
   pub fn new(path: &str) -> std::io::Result<Self> {
-    // TODO: Implement this.
     Ok(Bitmap {
       file: OpenOptions::new()
           .read(true)
