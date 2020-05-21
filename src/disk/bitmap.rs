@@ -2,7 +2,6 @@ use crate::common::config::CHECKSUM_SIZE;
 use crate::disk::disk_manager::read;
 use crate::disk::disk_manager::write;
 use crate::logging::error_logging::ErrorLogging;
-use std::collections::BTreeSet;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Seek;
@@ -16,7 +15,6 @@ pub const FULL_WORD: u8 = 255;
 pub struct Bitmap {
   file: File,
   cache: Vec<u8>,
-  free: BTreeSet<usize>,
 }
 
 impl Drop for Bitmap {
@@ -35,7 +33,6 @@ impl Bitmap {
           .create(true)
           .open(path)?,
       cache: Vec::new(),
-      free: BTreeSet::new(),
     }).and_then(|mut bitmap| {
       bitmap.init()?;
       Ok(bitmap)
@@ -44,23 +41,6 @@ impl Bitmap {
 
   pub fn len(&self) -> usize {
     self.data().len()
-  }
-
-  pub fn find(&self) -> usize {
-    match self.free.iter().nth(0) {
-      Some(&word_idx) => {
-        let word = self.data()[word_idx];
-        // It is safe to unwrap here, because |word| < |FULL_WORD| always
-        // holds.
-        let bit_idx = (0..BITS_PER_WORD).rev()
-                          .skip_while(|x| word & (1 << x) > 0)
-                          .nth(0)
-                          .map(|x| BITS_PER_WORD - 1 - x)
-                          .unwrap();
-        word_idx * BITS_PER_WORD + bit_idx
-      },
-      None => self.len() * BITS_PER_WORD,
-    }
   }
 
   // Sets the bit at |idx|.
@@ -73,12 +53,6 @@ impl Bitmap {
       self.data_mut()[word_idx] |= mask;
     } else {
       self.data_mut()[word_idx] &= !mask;
-    }
-    // Update the free set.
-    if self.data()[word_idx] < FULL_WORD {
-      self.free.insert(word_idx);
-    } else {
-      self.free.remove(&word_idx);
     }
   }
 
@@ -117,7 +91,6 @@ impl Bitmap {
     while let Some(&word) = self.cache.last() {
       if word == 0 && self.data().len() > 0 {
         self.cache.pop();
-        self.free.remove(&self.data().len());
       } else {
         break;
       }
@@ -131,13 +104,6 @@ impl Bitmap {
       read(&mut self.file, self.cache.as_mut(), size)?;
     } else {
       self.cache = vec![0; CHECKSUM_SIZE];
-    }
-    // Initialize the free set.
-    let iter = self.cache.iter().skip(CHECKSUM_SIZE);
-    for (word_idx, &word) in iter.enumerate() {
-      if word < FULL_WORD {
-        self.free.insert(word_idx);
-      }
     }
     Ok(())
   }

@@ -7,7 +7,7 @@ use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
 use crate::common::error::*;
 use crate::common::reinterpret;
-use crate::disk::bitmap::Bitmap;
+use crate::disk::selector::Selector;
 use std::collections::hash_map::DefaultHasher;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -20,7 +20,7 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 
-pub const BITMAP_FILE_SUFFIX: &'static str = ".bitmap";
+pub const BITMAP_FILE_SUFFIX: &'static str = ".bm";
 
 // TODO: Right now, DiskManager does not support creating directories, i.e.
 // the |db_file| being passed to |DiskManager::new| has to be under an existing
@@ -29,7 +29,7 @@ pub const BITMAP_FILE_SUFFIX: &'static str = ".bitmap";
 
 pub struct DiskManager {
   db_io: File,
-  bitmap: Bitmap,
+  selector: Selector,
 }
 
 impl DiskManager {
@@ -41,7 +41,7 @@ impl DiskManager {
           .write(true)
           .create(true)
           .open(db_file)?,
-      bitmap: Bitmap::new(&bitmap_file)?,
+      selector: Selector::new(&bitmap_file)?,
     })
   }
 
@@ -62,7 +62,7 @@ impl DiskManager {
   pub fn read_page(&mut self,
                    page_id: PageId,
                    data: &mut [u8]) -> std::io::Result<()> {
-    if !self.bitmap.get_bit(page_id as usize) {
+    if !self.selector.is_used(page_id as usize) {
       return Err(invalid_input(
           &format!("The page is not allocated; page_id = {}", page_id)));
     }
@@ -79,15 +79,15 @@ impl DiskManager {
   }
 
   pub fn allocate_page(&mut self) -> PageId {
-    let idx = self.bitmap.find();
-    self.bitmap.set_bit(idx, true);
+    let idx = self.selector.vacant();
+    self.selector.set_used(idx);
     idx as PageId
   }
 
   // |HEADER_PAGE_ID| is the smallest possible page ID. Therefore, the caller
   // needs to ensure that |page_id| >= |HEADER_PAGE_ID|.
   pub fn deallocate_page(&mut self, page_id: PageId) {
-    self.bitmap.set_bit(page_id as usize, false);
+    self.selector.set_free(page_id as usize);
   }
 }
 
