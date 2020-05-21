@@ -46,6 +46,25 @@ impl Bitmap {
     self.data().len()
   }
 
+  pub fn find(&self) -> usize {
+    for (word_idx, &word) in self.data().iter().enumerate() {
+      if word < 255 {
+        let bit = {
+          if word & 128 == 0 { 0 }
+          else if word & 64 == 0 { 1 }
+          else if word & 32 == 0 { 2 }
+          else if word & 16 == 0 { 3 }
+          else if word & 8 == 0 { 4 }
+          else if word & 4 == 0 { 5 }
+          else if word & 2 == 0 { 6 }
+          else { 7 }
+        };
+        return word_idx * BITS_PER_WORD + bit;
+      }
+    }
+    self.data().len() * BITS_PER_WORD
+  }
+
   pub fn set_bit(&mut self, idx: usize, bit: bool) {
     let word_idx = idx / BITS_PER_WORD;
     let bit_idx = idx % BITS_PER_WORD;
@@ -153,8 +172,38 @@ mod tests {
   }
 
   #[test]
-  fn len_and_truncate() {
+  fn find_and_set() {
     let path = "/tmp/testfile.bitmap.2.db";
+
+    // Test file deleter with RAII.
+    let mut file_deleter = FileDeleter::new();
+    file_deleter.push(&path);
+
+    let result = Bitmap::new(&path);
+    assert!(result.is_ok(), "Failed to create Bitmap");
+
+    let mut bitmap = result.unwrap();
+    assert_eq!(0, bitmap.find());
+
+    for i in 0..128 {
+      bitmap.set_bit(i, true);
+      assert_eq!(i + 1, bitmap.find());
+    }
+
+    bitmap.set_bit(80, false);
+    assert_eq!(80, bitmap.find());
+
+    for i in 64..128 {
+      bitmap.set_bit(i, false);
+      assert_eq!(64, bitmap.find());
+    }
+    bitmap.truncate();
+    assert_eq!(8, bitmap.len());
+  }
+
+  #[test]
+  fn len_and_truncate() {
+    let path = "/tmp/testfile.bitmap.3.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
@@ -181,7 +230,7 @@ mod tests {
 
   #[test]
   fn drop_new() {
-    let path = "/tmp/testfile.bitmap.3.db";
+    let path = "/tmp/testfile.bitmap.4.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
