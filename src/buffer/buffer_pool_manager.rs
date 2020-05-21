@@ -319,6 +319,7 @@ fn validate(page_id: PageId) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+  use crate::common::config::BITMAP_FILE_SUFFIX;
   use crate::common::config::CHECKSUM_SIZE;
   use crate::common::reinterpret;
   use crate::page::table_page::TablePage;
@@ -330,10 +331,12 @@ mod tests {
   #[test]
   fn buffer_pool_manager() {
     let file_path = "/tmp/testfile.buffer_pool_manager.1.db";
+    let bitmap_path = file_path.to_string() + BITMAP_FILE_SUFFIX;
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
     file_deleter.push(&file_path);
+    file_deleter.push(&bitmap_path);
 
     let result = TestingBufferPoolManager::new(10, file_path);
     assert!(result.is_ok(), "Failed to create");
@@ -369,7 +372,7 @@ mod tests {
     }
 
     // Fetch page one again.
-    let maybe_page = bpm.fetch_page(1);
+    let maybe_page = bpm.fetch_page(HEADER_PAGE_ID);
     assert!(maybe_page.is_ok());
 
     // Check read content.
@@ -380,10 +383,12 @@ mod tests {
   #[test]
   fn new_and_delete() {
     let file_path = "/tmp/testfile.buffer_pool_manager.2.db";
+    let bitmap_path = file_path.to_string() + BITMAP_FILE_SUFFIX;
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
     file_deleter.push(&file_path);
+    file_deleter.push(&bitmap_path);
 
     let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();
     for i in 0..10 {
@@ -420,10 +425,12 @@ mod tests {
   #[test]
   fn drop_flushes_all_pages() {
     let file_path = "/tmp/testfile.buffer_pool_manager.3.db";
+    let bitmap_path = file_path.to_string() + BITMAP_FILE_SUFFIX;
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
     file_deleter.push(&file_path);
+    file_deleter.push(&bitmap_path);
 
     {
       let mut bpm = TestingBufferPoolManager::new(10, file_path).unwrap();

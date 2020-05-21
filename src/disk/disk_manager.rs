@@ -1,13 +1,15 @@
 // Disk manager takes care of the allocation and deallocation of pages within a
 // database. It also performs read and write of pages to and from disk, and
 // provides a logical file layer within the context of a database management
-// system. Page ID is allocated from 1, the page 0 is reserved.
+// system. Page ID is allocated from 0.
 
+use crate::common::config::BITMAP_FILE_SUFFIX;
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::error::*;
 use crate::common::reinterpret;
+use crate::disk::bitmap::Bitmap;
 use crate::logging::error_logging::ErrorLogging;
 use crate::page::reserved_page::ReservedPage;
 use std::collections::HashSet;
@@ -31,47 +33,20 @@ use std::ops::Drop;
 
 pub struct DiskManager {
   db_io: File,
-  metadata: Metadata,
-}
-
-impl Drop for DiskManager {
-  fn drop(&mut self) {
-    self.metadata.drop();
-    // Unable to handle errors on destruction.
-    self.db_io.seek(SeekFrom::Start(0)).log();
-    write(&mut self.db_io, self.metadata.reserved.data_mut(), PAGE_SIZE).log();
-  }
+  bitmap: Bitmap,
 }
 
 impl DiskManager {
   pub fn new(db_file: &str) -> std::io::Result<Self> {
+    let bitmap_file = db_file.to_string() + BITMAP_FILE_SUFFIX;
     Ok(DiskManager {
       db_io: OpenOptions::new()
           .read(true)
           .write(true)
           .create(true)
           .open(db_file)?,
-      metadata: Metadata::new(),
-    }).and_then(|mut disk_mgr| {
-      disk_mgr.init()?;
-      Ok(disk_mgr)
+      bitmap: Bitmap::new(&bitmap_file)?,
     })
-  }
-
-  fn init(&mut self) -> std::io::Result<()> {
-    // Read only if the file is not empty.
-    if self.db_io.metadata()?.len() > 0 {
-      read(&mut self.db_io, self.metadata.reserved.data_mut(), PAGE_SIZE)?;
-    }
-    let mut records = self.metadata.reserved.read_records();
-    // If |records| is empty, the file is empty, the next free page is 1.
-    if records.is_empty() {
-      self.metadata.next_free = 1;
-    } else {
-      self.metadata.next_free = records.pop().unwrap();
-    }
-    self.metadata.free_pages = records.drain(..).collect();
-    Ok(())
   }
 
   // Writes data to page with the specified page ID on disk.
@@ -91,8 +66,7 @@ impl DiskManager {
   pub fn read_page(&mut self,
                    page_id: PageId,
                    data: &mut [u8]) -> std::io::Result<()> {
-    if page_id >= self.metadata.next_free ||
-        self.metadata.free_pages.contains(&page_id) {
+    if !self.bitmap.get_bit(page_id as usize) {
       return Err(invalid_input(
           &format!("The page is not allocated; page_id = {}", page_id)));
     }
@@ -109,13 +83,15 @@ impl DiskManager {
   }
 
   pub fn allocate_page(&mut self) -> PageId {
-    self.metadata.remove_free()
+    let idx = self.bitmap.find();
+    self.bitmap.set_bit(idx, true);
+    idx as PageId
   }
 
   // |HEADER_PAGE_ID| is the smallest possible page ID. Therefore, the caller
   // needs to ensure that |page_id| >= |HEADER_PAGE_ID|.
   pub fn deallocate_page(&mut self, page_id: PageId) {
-    self.metadata.insert_free(page_id);
+    self.bitmap.set_bit(page_id as usize, false);
   }
 }
 
@@ -132,7 +108,6 @@ pub fn write(file: &mut File,
     }
       pos += bytes_written;
   }
-  println!("write: {:?}", data);
   Ok(())
 }
 
@@ -148,52 +123,8 @@ pub fn read(file: &mut File,
     }
     pos += bytes_read;
   }
-  println!("read: {:?}", data);
   validate_checksum(data)?;
   Ok(())
-}
-
-struct Metadata {
-  free_pages: HashSet<PageId>,
-  next_free: PageId,
-  reserved: ReservedPage,
-}
-
-impl Metadata {
-  pub fn new() -> Self {
-    Metadata {
-      free_pages: HashSet::new(),
-      next_free: INVALID_PAGE_ID,
-      reserved: ReservedPage::new(),
-    }
-  }
-
-  pub fn insert_free(&mut self, id: PageId) {
-    self.free_pages.insert(id);
-    while self.free_pages.remove(&(self.next_free - 1)) {
-      self.next_free -= 1;
-    }
-  }
-
-  pub fn remove_free(&mut self) -> PageId {
-    match self.free_pages.iter().nth(0).map(|x| *x) {
-      Some(id) => {
-        self.free_pages.remove(&id);
-        id
-      },
-      None => {
-        let id = self.next_free;
-        self.next_free += 1;
-        id
-      },
-    }
-  }
-
-  fn drop(&mut self) {
-    let mut vec: Vec<_> = self.free_pages.drain().collect();
-    vec.push(self.next_free);
-    self.reserved.write_records(&vec);
-  }
 }
 
 fn update_checksum(data: &mut [u8]) -> std::io::Result<()> {
@@ -232,17 +163,19 @@ mod tests {
   #[test]
   fn disk_manager() {
     let file_path = "/tmp/testfile.disk_manager.1.db";
+    let bitmap_path = file_path.to_string() + BITMAP_FILE_SUFFIX;
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
     file_deleter.push(&file_path);
+    file_deleter.push(&bitmap_path);
 
     let result = DiskManager::new(&file_path);
     assert!(result.is_ok(), "Failed to create DiskManager");
 
     let mut disk_mgr = result.unwrap();
     let page_id = disk_mgr.allocate_page();
-    assert_eq!(1, page_id, "Page 0 is reserved");
+    assert_eq!(0, page_id, "Page should start from 0");
 
     let mut data = String::with_capacity(PAGE_SIZE);
     let mut buffer = String::with_capacity(PAGE_SIZE);
@@ -275,10 +208,12 @@ mod tests {
   #[test]
   fn drop_new() {
     let file_path = "/tmp/testfile.disk_manager.2.db";
+    let bitmap_path = file_path.to_string() + BITMAP_FILE_SUFFIX;
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
     file_deleter.push(&file_path);
+    file_deleter.push(&bitmap_path);
 
     let page_id: PageId;
     let mut data = String::with_capacity(PAGE_SIZE);
@@ -328,40 +263,42 @@ mod tests {
   #[test]
   fn allocate_deallocate() {
     let file_path = "/tmp/testfile.disk_manager.3.db";
+    let bitmap_path = file_path.to_string() + BITMAP_FILE_SUFFIX;
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
     file_deleter.push(&file_path);
+    file_deleter.push(&bitmap_path);
 
     {
       let result = DiskManager::new(&file_path);
       assert!(result.is_ok(), "Failed to create DiskManager");
 
       let mut disk_mgr = result.unwrap();
+      assert_eq!(0, disk_mgr.allocate_page());
       assert_eq!(1, disk_mgr.allocate_page());
       assert_eq!(2, disk_mgr.allocate_page());
       assert_eq!(3, disk_mgr.allocate_page());
       assert_eq!(4, disk_mgr.allocate_page());
-      assert_eq!(5, disk_mgr.allocate_page());
 
       disk_mgr.deallocate_page(2);
       assert_eq!(2, disk_mgr.allocate_page());
       disk_mgr.deallocate_page(3);
       disk_mgr.deallocate_page(3);
       assert_eq!(3, disk_mgr.allocate_page());
-      assert_eq!(6, disk_mgr.allocate_page());
+      assert_eq!(5, disk_mgr.allocate_page());
 
+      disk_mgr.deallocate_page(0);
+      disk_mgr.deallocate_page(4);
+      assert_eq!(0, disk_mgr.allocate_page());
+      assert_eq!(4, disk_mgr.allocate_page());
       disk_mgr.deallocate_page(1);
       disk_mgr.deallocate_page(2);
       disk_mgr.deallocate_page(3);
-      disk_mgr.deallocate_page(4);
       disk_mgr.deallocate_page(5);
-      disk_mgr.deallocate_page(6);
       assert_eq!(1, disk_mgr.allocate_page());
       assert_eq!(2, disk_mgr.allocate_page());
       assert_eq!(3, disk_mgr.allocate_page());
-      assert_eq!(4, disk_mgr.allocate_page());
-      assert_eq!(5, disk_mgr.allocate_page());
     }  // Drops disk_mgr.
 
     {
@@ -369,14 +306,14 @@ mod tests {
       assert!(result.is_ok(), "Failed to create DiskManager");
 
       let mut disk_mgr = result.unwrap();
+      assert_eq!(5, disk_mgr.allocate_page());
       assert_eq!(6, disk_mgr.allocate_page());
       assert_eq!(7, disk_mgr.allocate_page());
-      assert_eq!(8, disk_mgr.allocate_page());
 
-      disk_mgr.deallocate_page(1);
-      disk_mgr.deallocate_page(8);
+      disk_mgr.deallocate_page(0);
       disk_mgr.deallocate_page(7);
       disk_mgr.deallocate_page(6);
+      disk_mgr.deallocate_page(5);
     }  // Drops disk_mgr.
 
     {
@@ -384,11 +321,11 @@ mod tests {
       assert!(result.is_ok(), "Failed to create DiskManager");
 
       let mut disk_mgr = result.unwrap();
-      assert_eq!(1, disk_mgr.allocate_page());
+      assert_eq!(0, disk_mgr.allocate_page());
+      assert_eq!(5, disk_mgr.allocate_page());
       assert_eq!(6, disk_mgr.allocate_page());
       assert_eq!(7, disk_mgr.allocate_page());
       assert_eq!(8, disk_mgr.allocate_page());
-      assert_eq!(9, disk_mgr.allocate_page());
     }  // Drops disk_mgr.
   }
 }

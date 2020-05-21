@@ -13,7 +13,7 @@ use std::ops::Drop;
 // Using `u8` as word, which has 8 bytes.
 const BITS_PER_WORD: usize = 8;
 
-struct Bitmap {
+pub struct Bitmap {
   file: File,
   cache: Vec<u8>,
 }
