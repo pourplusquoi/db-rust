@@ -1,3 +1,3 @@
 pub trait Newable {
-  fn new() -> Self;
+    fn new() -> Self;
 }
