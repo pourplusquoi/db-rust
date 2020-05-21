@@ -10,8 +10,8 @@ use std::io::SeekFrom;
 use std::ops::Drop;
 
 // Using `u8` as word, which has 8 bytes.
-const BITS_PER_WORD: usize = 8;
-const FULL_WORD: u8 = 255;
+pub const BITS_PER_WORD: usize = 8;
+pub const FULL_WORD: u8 = 255;
 
 pub struct Bitmap {
   file: File,
@@ -59,10 +59,11 @@ impl Bitmap {
                           .unwrap();
         word_idx * BITS_PER_WORD + bit_idx
       },
-      None => self.data().len() * BITS_PER_WORD,
+      None => self.len() * BITS_PER_WORD,
     }
   }
 
+  // Sets the bit at |idx|.
   pub fn set_bit(&mut self, idx: usize, bit: bool) {
     let word_idx = idx / BITS_PER_WORD;
     let bit_idx = idx % BITS_PER_WORD;
@@ -81,6 +82,7 @@ impl Bitmap {
     }
   }
 
+  // Gets the bit at |idx|.
   pub fn get_bit(&self, idx: usize) -> bool {
     let word_idx = idx / BITS_PER_WORD;
     if word_idx >= self.len() {
@@ -89,6 +91,15 @@ impl Bitmap {
     let bit_idx = idx % BITS_PER_WORD;
     let mask = 1 << (BITS_PER_WORD - 1 - bit_idx);
     self.data()[word_idx] & mask > 0
+  }
+
+  // Gets the word at |word_idx|.
+  pub fn get_word(&self, word_idx: usize) -> u8 {
+    if word_idx < self.len() {
+      self.data()[word_idx]
+    } else {
+      0
+    }
   }
 
   // Compacts and persists to disk.
@@ -184,41 +195,8 @@ mod tests {
   }
 
   #[test]
-  fn find_and_set() {
-    let path = "/tmp/testfile.bitmap.2.db";
-
-    // Test file deleter with RAII.
-    let mut file_deleter = FileDeleter::new();
-    file_deleter.push(&path);
-
-    let result = Bitmap::new(&path);
-    assert!(result.is_ok(), "Failed to create Bitmap");
-
-    let mut bitmap = result.unwrap();
-    assert_eq!(0, bitmap.find());
-
-    for i in 0..128 {
-      bitmap.set_bit(i, true);
-      assert_eq!(i + 1, bitmap.find());
-    }
-
-    bitmap.set_bit(80, false);
-    assert_eq!(80, bitmap.find());
-    bitmap.set_bit(80, true);
-    assert_eq!(128, bitmap.find());
-
-    for i in 64..128 {
-      bitmap.set_bit(i, false);
-      assert!(bitmap.find() >= 64);
-      assert!(bitmap.find() <= i, "{}, {}", bitmap.find(), i);
-    }
-    bitmap.compact();
-    assert_eq!(8, bitmap.len());
-  }
-
-  #[test]
   fn len_and_compact() {
-    let path = "/tmp/testfile.bitmap.3.db";
+    let path = "/tmp/testfile.bitmap.2.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
@@ -245,7 +223,7 @@ mod tests {
 
   #[test]
   fn drop_new() {
-    let path = "/tmp/testfile.bitmap.4.db";
+    let path = "/tmp/testfile.bitmap.3.db";
 
     // Test file deleter with RAII.
     let mut file_deleter = FileDeleter::new();
