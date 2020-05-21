@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_variables)]
 
 use crate::types::types::Operation;
 use crate::types::types::Types;

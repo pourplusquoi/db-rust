@@ -6,13 +6,9 @@
 use crate::common::config::BITMAP_FILE_SUFFIX;
 use crate::common::config::PAGE_SIZE;
 use crate::common::config::PageId;
-use crate::common::config::INVALID_PAGE_ID;
 use crate::common::error::*;
 use crate::common::reinterpret;
 use crate::disk::bitmap::Bitmap;
-use crate::logging::error_logging::ErrorLogging;
-use crate::page::reserved_page::ReservedPage;
-use std::collections::HashSet;
 use std::collections::hash_map::DefaultHasher;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -24,7 +20,6 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
-use std::ops::Drop;
 
 // TODO: Right now, DiskManager does not support creating directories, i.e.
 // the |db_file| being passed to |DiskManager::new| has to be under an existing
