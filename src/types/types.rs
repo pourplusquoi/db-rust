@@ -250,6 +250,94 @@ impl<'a> Types<'a> {
             }
         }
     }
+
+    // pub fn to_varlen(&self) -> Varlen {
+    //     match self {
+    //         Self::TinyInt(val) ->
+    //         // Varlen::Owned()
+    //         _ => {
+    //             panic!("Type error for to_varlen");
+    //         }
+    //     }
+    // }
+
+    pub fn borrow_varlen(&self) -> &Varlen {
+        match self {
+            Self::Varchar(val) => val,
+            _ => {
+                panic!("Type error for borrow_varlen");
+            }
+        }
+    }
+
+    pub fn get_as_bool(&self) -> i8 {
+        match self {
+            Self::Boolean(val) => *val as i8,
+            _ => {
+                panic!("Type error for get_as_bool");
+            }
+        }
+    }
+
+    pub fn get_as_i8(&self) -> i8 {
+        match self {
+            Self::TinyInt(val) => *val as i8,
+            _ => {
+                panic!("Type error for get_as_i8");
+            }
+        }
+    }
+
+    pub fn get_as_i16(&self) -> i16 {
+        match self {
+            Self::TinyInt(val) => *val as i16,
+            Self::SmallInt(val) => *val as i16,
+            _ => {
+                panic!("Type error for get_as_i16");
+            }
+        }
+    }
+
+    pub fn get_as_i32(&self) -> i32 {
+        match self {
+            Self::TinyInt(val) => *val as i32,
+            Self::SmallInt(val) => *val as i32,
+            Self::Integer(val) => *val as i32,
+            _ => {
+                panic!("Type error for get_as_i32");
+            }
+        }
+    }
+
+    pub fn get_as_i64(&self) -> i64 {
+        match self {
+            Self::TinyInt(val) => *val as i64,
+            Self::SmallInt(val) => *val as i64,
+            Self::Integer(val) => *val as i64,
+            Self::BigInt(val) => *val as i64,
+            _ => {
+                panic!("Type error for get_as_i64");
+            }
+        }
+    }
+
+    pub fn get_as_u64(&self) -> u64 {
+        match self {
+            Self::Timestamp(val) => *val as u64,
+            _ => {
+                panic!("Type error for get_as_u64");
+            }
+        }
+    }
+
+    pub fn get_as_f64(&self) -> f64 {
+        match self {
+            Self::Decimal(val) => *val as f64,
+            _ => {
+                panic!("Type error for get_as_f64");
+            }
+        }
+    }
 }
 
 pub trait Operation: Sized {

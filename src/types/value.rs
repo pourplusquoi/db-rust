@@ -3,7 +3,9 @@
 
 use crate::types::limits::*;
 use crate::types::types::Operation;
+use crate::types::types::Str;
 use crate::types::types::Types;
+use crate::types::types::Varlen;
 
 #[derive(Clone)]
 pub struct Value<'a> {
@@ -67,38 +69,133 @@ impl<'a> Value<'a> {
         }
     }
 
+    fn get_as_bool(&self) -> i8 {
+        self.content.get_as_bool()
+    }
+    fn get_as_i8(&self) -> i8 {
+        self.content.get_as_i8()
+    }
+    fn get_as_i16(&self) -> i16 {
+        self.content.get_as_i16()
+    }
+    fn get_as_i32(&self) -> i32 {
+        self.content.get_as_i32()
+    }
+    fn get_as_i64(&self) -> i64 {
+        self.content.get_as_i64()
+    }
+    fn get_as_u64(&self) -> u64 {
+        self.content.get_as_u64()
+    }
+    fn get_as_f64(&self) -> f64 {
+        self.content.get_as_f64()
+    }
+
     // pub fn data() -> {}
 }
 
 impl<'a> Operation for Value<'a> {
     // TODO: Implement this.
     fn eq(&self, other: &Self) -> Option<bool> {
-        None
+        assert_comparable(self, other);
+        if self.is_null() || other.is_null() {
+            return None;
+        }
+        Some(match self.content {
+            Types::Boolean(_) => self.get_as_bool() == other.get_as_bool(),
+            Types::TinyInt(_) => self.get_as_i8() == other.get_as_i8(),
+            Types::SmallInt(_) => self.get_as_i16() == other.get_as_i16(),
+            Types::Integer(_) => self.get_as_i32() == other.get_as_i32(),
+            Types::BigInt(_) => self.get_as_i64() == other.get_as_i64(),
+            Types::Timestamp(_) => self.get_as_u64() == other.get_as_u64(),
+            Types::Decimal(_) => self.subtract(other).is_zero(),
+            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) == 0,
+        })
     }
 
-    // TODO: Implement this.
     fn ne(&self, other: &Self) -> Option<bool> {
-        None
+        assert_comparable(self, other);
+        if self.is_null() || other.is_null() {
+            return None;
+        }
+        Some(match self.content {
+            Types::Boolean(_) => self.get_as_bool() != other.get_as_bool(),
+            Types::TinyInt(_) => self.get_as_i8() != other.get_as_i8(),
+            Types::SmallInt(_) => self.get_as_i16() != other.get_as_i16(),
+            Types::Integer(_) => self.get_as_i32() != other.get_as_i32(),
+            Types::BigInt(_) => self.get_as_i64() != other.get_as_i64(),
+            Types::Timestamp(_) => self.get_as_u64() != other.get_as_u64(),
+            Types::Decimal(_) => !self.subtract(other).is_zero(),
+            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) == 0,
+        })
     }
 
-    // TODO: Implement this.
     fn lt(&self, other: &Self) -> Option<bool> {
-        None
+        assert_comparable(self, other);
+        if self.is_null() || other.is_null() {
+            return None;
+        }
+        Some(match self.content {
+            Types::Boolean(_) => self.get_as_bool() < other.get_as_bool(),
+            Types::TinyInt(_) => self.get_as_i8() < other.get_as_i8(),
+            Types::SmallInt(_) => self.get_as_i16() < other.get_as_i16(),
+            Types::Integer(_) => self.get_as_i32() < other.get_as_i32(),
+            Types::BigInt(_) => self.get_as_i64() < other.get_as_i64(),
+            Types::Timestamp(_) => self.get_as_u64() < other.get_as_u64(),
+            Types::Decimal(_) => self.subtract(other).get_as_f64() < 0.0,
+            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) < 0,
+        })
     }
 
-    // TODO: Implement this.
     fn le(&self, other: &Self) -> Option<bool> {
-        None
+        assert_comparable(self, other);
+        if self.is_null() || other.is_null() {
+            return None;
+        }
+        Some(match self.content {
+            Types::Boolean(_) => self.get_as_bool() <= other.get_as_bool(),
+            Types::TinyInt(_) => self.get_as_i8() <= other.get_as_i8(),
+            Types::SmallInt(_) => self.get_as_i16() <= other.get_as_i16(),
+            Types::Integer(_) => self.get_as_i32() <= other.get_as_i32(),
+            Types::BigInt(_) => self.get_as_i64() <= other.get_as_i64(),
+            Types::Timestamp(_) => self.get_as_u64() <= other.get_as_u64(),
+            Types::Decimal(_) => self.subtract(other).get_as_f64() <= 0.0,
+            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) <= 0,
+        })
     }
 
-    // TODO: Implement this.
     fn gt(&self, other: &Self) -> Option<bool> {
-        None
+        assert_comparable(self, other);
+        if self.is_null() || other.is_null() {
+            return None;
+        }
+        Some(match self.content {
+            Types::Boolean(_) => self.get_as_bool() > other.get_as_bool(),
+            Types::TinyInt(_) => self.get_as_i8() > other.get_as_i8(),
+            Types::SmallInt(_) => self.get_as_i16() > other.get_as_i16(),
+            Types::Integer(_) => self.get_as_i32() > other.get_as_i32(),
+            Types::BigInt(_) => self.get_as_i64() > other.get_as_i64(),
+            Types::Timestamp(_) => self.get_as_u64() > other.get_as_u64(),
+            Types::Decimal(_) => self.subtract(other).get_as_f64() > 0.0,
+            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) > 0,
+        })
     }
 
-    // TODO: Implement this.
     fn ge(&self, other: &Self) -> Option<bool> {
-        None
+        assert_comparable(self, other);
+        if self.is_null() || other.is_null() {
+            return None;
+        }
+        Some(match self.content {
+            Types::Boolean(_) => self.get_as_bool() >= other.get_as_bool(),
+            Types::TinyInt(_) => self.get_as_i8() >= other.get_as_i8(),
+            Types::SmallInt(_) => self.get_as_i16() >= other.get_as_i16(),
+            Types::Integer(_) => self.get_as_i32() >= other.get_as_i32(),
+            Types::BigInt(_) => self.get_as_i64() >= other.get_as_i64(),
+            Types::Timestamp(_) => self.get_as_u64() >= other.get_as_u64(),
+            Types::Decimal(_) => self.subtract(other).get_as_f64() >= 0.0,
+            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) >= 0,
+        })
     }
 
     // TODO: Implement this.
@@ -205,7 +302,7 @@ impl<'a> Operation for Value<'a> {
             Types::SmallInt(val) => val == 0,
             Types::Integer(val) => val == 0,
             Types::BigInt(val) => val == 0,
-            Types::Decimal(val) => val <= std::f64::EPSILON && val >= -std::f64::EPSILON,
+            Types::Decimal(val) => almost_zero(val),
             _ => {
                 panic!("Type error for is_zero");
             }
@@ -234,10 +331,19 @@ impl<'a> Operation for Value<'a> {
     }
 }
 
+fn almost_zero(val: f64) -> bool {
+    val <= std::f64::EPSILON && val >= -std::f64::EPSILON
+}
+
 fn assert_comparable(lhs: &Value, rhs: &Value) {
     if !lhs.is_comparable_to(rhs) {
         panic!("Cannot compare");
     }
+}
+
+// TODO: Implement this.
+fn varlen_cmp(lhs: &Varlen, rhs: &Value) -> i8 {
+    0
 }
 
 fn get_size<'a>(content: &Types<'a>) -> u32 {
