@@ -1,4 +1,8 @@
-pub mod limits;
+#[macro_use]
+mod macros;
+
 pub mod types;
 pub mod value;
-pub mod varlen_util;
+
+mod limits;
+mod varlen_util;

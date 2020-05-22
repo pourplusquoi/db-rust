@@ -107,16 +107,7 @@ impl<'a> Operation for Value<'a> {
         if self.is_null() || other.is_null() {
             return None;
         }
-        Some(match self.content {
-            Types::Boolean(_) => self.get_as_bool() == other.get_as_bool(),
-            Types::TinyInt(_) => self.get_as_i8() == other.get_as_i8(),
-            Types::SmallInt(_) => self.get_as_i16() == other.get_as_i16(),
-            Types::Integer(_) => self.get_as_i32() == other.get_as_i32(),
-            Types::BigInt(_) => self.get_as_i64() == other.get_as_i64(),
-            Types::Timestamp(_) => self.get_as_u64() == other.get_as_u64(),
-            Types::Decimal(_) => self.subtract(other).is_zero(),
-            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) == 0,
-        })
+        compare!(self, other, (|x, y| x == y), (|x: Value| x.is_zero()))
     }
 
     fn ne(&self, other: &Self) -> Option<bool> {
@@ -124,16 +115,7 @@ impl<'a> Operation for Value<'a> {
         if self.is_null() || other.is_null() {
             return None;
         }
-        Some(match self.content {
-            Types::Boolean(_) => self.get_as_bool() != other.get_as_bool(),
-            Types::TinyInt(_) => self.get_as_i8() != other.get_as_i8(),
-            Types::SmallInt(_) => self.get_as_i16() != other.get_as_i16(),
-            Types::Integer(_) => self.get_as_i32() != other.get_as_i32(),
-            Types::BigInt(_) => self.get_as_i64() != other.get_as_i64(),
-            Types::Timestamp(_) => self.get_as_u64() != other.get_as_u64(),
-            Types::Decimal(_) => !self.subtract(other).is_zero(),
-            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) == 0,
-        })
+        compare!(self, other, (|x, y| x != y), (|x: Value| !x.is_zero()))
     }
 
     fn lt(&self, other: &Self) -> Option<bool> {
@@ -141,16 +123,12 @@ impl<'a> Operation for Value<'a> {
         if self.is_null() || other.is_null() {
             return None;
         }
-        Some(match self.content {
-            Types::Boolean(_) => self.get_as_bool() < other.get_as_bool(),
-            Types::TinyInt(_) => self.get_as_i8() < other.get_as_i8(),
-            Types::SmallInt(_) => self.get_as_i16() < other.get_as_i16(),
-            Types::Integer(_) => self.get_as_i32() < other.get_as_i32(),
-            Types::BigInt(_) => self.get_as_i64() < other.get_as_i64(),
-            Types::Timestamp(_) => self.get_as_u64() < other.get_as_u64(),
-            Types::Decimal(_) => self.subtract(other).get_as_f64() < 0.0,
-            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) < 0,
-        })
+        compare!(
+            self,
+            other,
+            (|x, y| x < y),
+            (|x: Value| x.get_as_f64() < 0.0)
+        )
     }
 
     fn le(&self, other: &Self) -> Option<bool> {
@@ -158,16 +136,12 @@ impl<'a> Operation for Value<'a> {
         if self.is_null() || other.is_null() {
             return None;
         }
-        Some(match self.content {
-            Types::Boolean(_) => self.get_as_bool() <= other.get_as_bool(),
-            Types::TinyInt(_) => self.get_as_i8() <= other.get_as_i8(),
-            Types::SmallInt(_) => self.get_as_i16() <= other.get_as_i16(),
-            Types::Integer(_) => self.get_as_i32() <= other.get_as_i32(),
-            Types::BigInt(_) => self.get_as_i64() <= other.get_as_i64(),
-            Types::Timestamp(_) => self.get_as_u64() <= other.get_as_u64(),
-            Types::Decimal(_) => self.subtract(other).get_as_f64() <= 0.0,
-            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) <= 0,
-        })
+        compare!(
+            self,
+            other,
+            (|x, y| x <= y),
+            (|x: Value| x.get_as_f64() <= 0.0)
+        )
     }
 
     fn gt(&self, other: &Self) -> Option<bool> {
@@ -175,16 +149,12 @@ impl<'a> Operation for Value<'a> {
         if self.is_null() || other.is_null() {
             return None;
         }
-        Some(match self.content {
-            Types::Boolean(_) => self.get_as_bool() > other.get_as_bool(),
-            Types::TinyInt(_) => self.get_as_i8() > other.get_as_i8(),
-            Types::SmallInt(_) => self.get_as_i16() > other.get_as_i16(),
-            Types::Integer(_) => self.get_as_i32() > other.get_as_i32(),
-            Types::BigInt(_) => self.get_as_i64() > other.get_as_i64(),
-            Types::Timestamp(_) => self.get_as_u64() > other.get_as_u64(),
-            Types::Decimal(_) => self.subtract(other).get_as_f64() > 0.0,
-            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) > 0,
-        })
+        compare!(
+            self,
+            other,
+            (|x, y| x > y),
+            (|x: Value| x.get_as_f64() > 0.0)
+        )
     }
 
     fn ge(&self, other: &Self) -> Option<bool> {
@@ -192,16 +162,12 @@ impl<'a> Operation for Value<'a> {
         if self.is_null() || other.is_null() {
             return None;
         }
-        Some(match self.content {
-            Types::Boolean(_) => self.get_as_bool() >= other.get_as_bool(),
-            Types::TinyInt(_) => self.get_as_i8() >= other.get_as_i8(),
-            Types::SmallInt(_) => self.get_as_i16() >= other.get_as_i16(),
-            Types::Integer(_) => self.get_as_i32() >= other.get_as_i32(),
-            Types::BigInt(_) => self.get_as_i64() >= other.get_as_i64(),
-            Types::Timestamp(_) => self.get_as_u64() >= other.get_as_u64(),
-            Types::Decimal(_) => self.subtract(other).get_as_f64() >= 0.0,
-            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) >= 0,
-        })
+        compare!(
+            self,
+            other,
+            (|x, y| x >= y),
+            (|x: Value| x.get_as_f64() >= 0.0)
+        )
     }
 
     // TODO: Implement this.
