@@ -359,13 +359,17 @@ mod tests {
         let int5 = Value::new(Types::Integer(0));
         let dec1 = Value::new(Types::Decimal(10.0));
         let dec2 = Value::new(Types::Decimal(0.0));
+       
         assert_eq!(Some(true), int1.add(&int1).eq(&value!(4, TinyInt)));
         assert_eq!(Some(true), int1.add(&int2).eq(&value!(5, SmallInt)));
+       
         assert_eq!(Some(true), int2.subtract(&int3).eq(&value!(-2, Integer)));
         assert_eq!(Some(true), dec1.subtract(&int3).eq(&value!(5.0, Decimal)));
+       
         assert_eq!(Some(true), int3.multiply(&int4).eq(&value!(35, BigInt)));
         assert_eq!(Some(true), dec1.multiply(&int4).eq(&value!(70.0, Decimal)));
         assert_eq!(Some(true), int3.multiply(&dec1).eq(&value!(50.0, Decimal)));
+        
         assert_eq!(
             Some(true),
             int3.divide(&int4).unwrap().eq(&value!(0, BigInt))
@@ -386,6 +390,7 @@ mod tests {
             Some(true),
             int1.divide(&dec1).unwrap().eq(&value!(0.2, Decimal))
         );
+        
         assert_eq!(
             Some(true),
             int4.modulo(&int2).unwrap().eq(&value!(1, BigInt))
@@ -398,6 +403,7 @@ mod tests {
             Some(true),
             dec1.modulo(&int1).unwrap().eq(&value!(0.0, Decimal))
         );
+        
         assert!(int4.divide(&int5).is_none());
         assert!(int4.divide(&dec2).is_none());
         assert!(int2.modulo(&int5).is_none());
@@ -405,17 +411,58 @@ mod tests {
     }
 
     #[test]
-    fn sqrt_null_and_checks() {
+    fn sqrt_test() {
+        let int1 = value!(0, Integer);
+        let int2 = value!(9, Integer);
+        let int3 = value!(-9, Integer);
+        let dec1 = value!(0.0, Decimal);
+        let dec2 = value!(16.0, Decimal);
+        let dec3 = value!(-16.0, Decimal);
+
+        assert_eq!(Some(true), int1.sqrt().unwrap().eq(&value!(0.0, Decimal)));
+        assert_eq!(Some(true), int2.sqrt().unwrap().eq(&value!(3.0, Decimal)));
+        assert!(int3.sqrt().is_none());
+
+        assert_eq!(Some(true), dec1.sqrt().unwrap().eq(&value!(0.0, Decimal)));
+        assert_eq!(Some(true), dec2.sqrt().unwrap().eq(&value!(4.0, Decimal)));
+        assert!(dec3.sqrt().is_none());
+    }
+
+    #[test]
+    fn null_and_checks() {
         let nullint = Value::new(Types::integer().null_val());
         let nulldec = Value::new(Types::decimal().null_val());
         assert!(nullint.is_integer());
         assert!(!nulldec.is_integer());
         assert!(nullint.is_numeric());
         assert!(nulldec.is_numeric());
+        assert!(nullint.is_null());
+        assert!(nulldec.is_null());
 
-        // assert!();
+        // Calling compare on null returns None.
+        assert!(nullint.sqrt().unwrap().eq(&nullint).is_none());
+        assert!(nulldec.sqrt().unwrap().eq(&nulldec).is_none());
+
+        let num1 = value!(0, Integer);
+        let num2 = value!(0, BigInt);
+        assert!(num1.null(&num2).is_null());
+        assert!(num2.null(&num1).is_null());
     }
 
     #[test]
-    fn min_and_max() {}
+    fn min_and_max() {
+        let int1 = value!(0, Integer);
+        let int2 = value!(9, Integer);
+        let int3 = value!(-9, Integer);
+        let dec1 = value!(1.0, Decimal);
+        let dec2 = value!(16.0, Decimal);
+        let dec3 = value!(-16.0, Decimal);
+        let nullint = Value::new(Types::integer().null_val());
+        let nulldec = Value::new(Types::decimal().null_val());
+
+        assert_eq!(Some(true), int1.min(&int3).eq(&int3));
+        assert_eq!(Some(true), int2.max(&int3).eq(&int2));
+        assert_eq!(Some(true), dec1.min(&dec2).eq(&dec1));
+        assert_eq!(Some(true), dec1.max(&dec3).eq(&dec1));
+    }
 }
