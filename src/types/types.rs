@@ -33,7 +33,7 @@ impl Str<String> {
     pub fn len(&self) -> usize {
         match self {
             Str::Val(s) => s.len(),
-            Str::MaxVal => 0,
+            Str::MaxVal => PELOTON_VALUE_NULL as usize,
         }
     }
 
@@ -252,12 +252,12 @@ pub trait Operation: Sized {
     fn modulo(&self, other: &Self) -> Option<Self>;
     fn min(&self, other: &Self) -> Option<Self>;
     fn max(&self, other: &Self) -> Option<Self>;
-    fn sqrt(&self, other: &Self) -> Option<Self>;
+    fn sqrt(&self) -> Option<Self>;
     fn null(&self, other: &Self) -> Option<Self>;
     fn is_zero(&self) -> bool;
     fn is_inlined(&self) -> bool;
     fn to_string(&self) -> String;
     fn serialize_to(&self, dst: &mut [u8]);
     fn deserialize_from(&mut self, src: &[u8]);
-    fn cast(&self, dst: &mut Self) -> bool;
+    fn cast_to(&self, dst: &mut Self) -> bool;
 }
