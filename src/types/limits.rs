@@ -29,9 +29,9 @@ pub const PELOTON_INT8_NULL: i8 = std::i8::MIN;
 pub const PELOTON_INT16_NULL: i16 = std::i16::MIN;
 pub const PELOTON_INT32_NULL: i32 = std::i32::MIN;
 pub const PELOTON_INT64_NULL: i64 = std::i64::MIN;
-pub const PELOTON_DATE_NULL: u64 = 0;
-pub const PELOTON_TIMESTAMP_NULL: u64 = std::u64::MAX;
 pub const PELOTON_DECIMAL_NULL: f64 = DBL_MIN;
+pub const PELOTON_TIMESTAMP_NULL: u64 = std::u64::MAX;
+pub const PELOTON_DATE_NULL: u64 = 0;
 pub const PELOTON_BOOLEAN_NULL: i8 = i8::MIN;
 
 pub const PELOTON_VARCHAR_MAX_LEN: u32 = u32::MAX;

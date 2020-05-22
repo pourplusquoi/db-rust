@@ -236,6 +236,20 @@ impl<'a> Types<'a> {
             },
         }
     }
+
+    pub fn null_val(self) -> Self {
+        match self {
+            Self::Boolean(_) => Self::Boolean(1),
+            Self::TinyInt(_) => Self::TinyInt(PELOTON_INT8_NULL),
+            Self::SmallInt(_) => Self::SmallInt(PELOTON_INT16_NULL),
+            Self::Integer(_) => Self::Integer(PELOTON_INT32_NULL),
+            Self::BigInt(_) => Self::BigInt(PELOTON_INT64_NULL),
+            Self::Decimal(_) => Self::Decimal(PELOTON_DECIMAL_NULL),
+            _ => {
+                panic!("Type error for null_val");
+            }
+        }
+    }
 }
 
 pub trait Operation: Sized {
@@ -245,15 +259,15 @@ pub trait Operation: Sized {
     fn le(&self, other: &Self) -> Option<bool>;
     fn gt(&self, other: &Self) -> Option<bool>;
     fn ge(&self, other: &Self) -> Option<bool>;
-    fn add(&self, other: &Self) -> Option<Self>;
-    fn subtract(&self, other: &Self) -> Option<Self>;
-    fn multiply(&self, other: &Self) -> Option<Self>;
-    fn divide(&self, other: &Self) -> Option<Self>;
-    fn modulo(&self, other: &Self) -> Option<Self>;
-    fn min(&self, other: &Self) -> Option<Self>;
-    fn max(&self, other: &Self) -> Option<Self>;
-    fn sqrt(&self) -> Option<Self>;
-    fn null(&self, other: &Self) -> Option<Self>;
+    fn add(&self, other: &Self) -> Self;
+    fn subtract(&self, other: &Self) -> Self;
+    fn multiply(&self, other: &Self) -> Self;
+    fn divide(&self, other: &Self) -> Self;
+    fn modulo(&self, other: &Self) -> Self;
+    fn min(&self, other: &Self) -> Self;
+    fn max(&self, other: &Self) -> Self;
+    fn sqrt(&self) -> Self;
+    fn null(&self, other: &Self) -> Self;
     fn is_zero(&self) -> bool;
     fn is_inlined(&self) -> bool;
     fn to_string(&self) -> String;

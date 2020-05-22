@@ -71,90 +71,172 @@ impl<'a> Value<'a> {
 }
 
 impl<'a> Operation for Value<'a> {
+    // TODO: Implement this.
     fn eq(&self, other: &Self) -> Option<bool> {
         None
     }
 
+    // TODO: Implement this.
     fn ne(&self, other: &Self) -> Option<bool> {
         None
     }
 
+    // TODO: Implement this.
     fn lt(&self, other: &Self) -> Option<bool> {
         None
     }
 
+    // TODO: Implement this.
     fn le(&self, other: &Self) -> Option<bool> {
         None
     }
 
+    // TODO: Implement this.
     fn gt(&self, other: &Self) -> Option<bool> {
         None
     }
 
+    // TODO: Implement this.
     fn ge(&self, other: &Self) -> Option<bool> {
         None
     }
 
-    fn add(&self, other: &Self) -> Option<Self> {
-        None
+    // TODO: Implement this.
+    fn add(&self, other: &Self) -> Self {
+        self.clone()
     }
 
-    fn subtract(&self, other: &Self) -> Option<Self> {
-        None
+    // TODO: Implement this.
+    fn subtract(&self, other: &Self) -> Self {
+        self.clone()
     }
 
-    fn multiply(&self, other: &Self) -> Option<Self> {
-        None
+    // TODO: Implement this.
+    fn multiply(&self, other: &Self) -> Self {
+        self.clone()
     }
 
-    fn divide(&self, other: &Self) -> Option<Self> {
-        None
+    // TODO: Implement this.
+    fn divide(&self, other: &Self) -> Self {
+        self.clone()
     }
 
-    fn modulo(&self, other: &Self) -> Option<Self> {
-        None
+    // TODO: Implement this.
+    fn modulo(&self, other: &Self) -> Self {
+        self.clone()
     }
 
-    fn min(&self, other: &Self) -> Option<Self> {
-        if !self.is_comparable_to(other) {
-            panic!("Cannot compare");
+    fn min(&self, other: &Self) -> Self {
+        assert_comparable(self, other);
+        if self.is_null() || other.is_null() {
+            return self.null(other);
         }
-        None
-    }
-
-    fn max(&self, other: &Self) -> Option<Self> {
-        if !self.is_comparable_to(other) {
-            panic!("Cannot compare");
+        if self.le(other) == Some(true) {
+            self.clone()
+        } else {
+            other.clone()
         }
-        None
     }
 
-    fn sqrt(&self) -> Option<Self> {
-        None
+    fn max(&self, other: &Self) -> Self {
+        assert_comparable(self, other);
+        if self.is_null() || other.is_null() {
+            return self.null(other);
+        }
+        if self.ge(other) == Some(true) {
+            self.clone()
+        } else {
+            other.clone()
+        }
     }
 
-    fn null(&self, other: &Self) -> Option<Self> {
-        None
+    // TODO: Implement this.
+    fn sqrt(&self) -> Self {
+        self.clone()
+    }
+
+    fn null(&self, other: &Self) -> Self {
+        match self.content {
+            Types::TinyInt(_) => match other.content {
+                Types::TinyInt(_)
+                | Types::SmallInt(_)
+                | Types::Integer(_)
+                | Types::BigInt(_)
+                | Types::Decimal(_) => Some(Value::new(other.content.clone())),
+                _ => None,
+            },
+            Types::SmallInt(_) => match other.content {
+                Types::TinyInt(_) => Some(Value::new(self.content.clone())),
+                Types::SmallInt(_) | Types::Integer(_) | Types::BigInt(_) | Types::Decimal(_) => {
+                    Some(Value::new(other.content.clone()))
+                }
+                _ => None,
+            },
+            Types::Integer(_) => match other.content {
+                Types::TinyInt(_) | Types::SmallInt(_) => Some(Value::new(self.content.clone())),
+                Types::Integer(_) | Types::BigInt(_) | Types::Decimal(_) => {
+                    Some(Value::new(other.content.clone()))
+                }
+                _ => None,
+            },
+            Types::BigInt(_) => match other.content {
+                Types::TinyInt(_) | Types::SmallInt(_) | Types::Integer(_) => {
+                    Some(Value::new(self.content.clone()))
+                }
+                Types::BigInt(_) | Types::Decimal(_) => Some(Value::new(other.content.clone())),
+                _ => None,
+            },
+            Types::Decimal(_) => match other.content {
+                Types::TinyInt(_)
+                | Types::SmallInt(_)
+                | Types::Integer(_)
+                | Types::BigInt(_)
+                | Types::Decimal(_) => Some(Value::new(self.content.clone())),
+                _ => None,
+            },
+            _ => None,
+        }
+        .expect("Type error for null")
     }
 
     fn is_zero(&self) -> bool {
-        false
+        match self.content {
+            Types::TinyInt(val) => val == 0,
+            Types::SmallInt(val) => val == 0,
+            Types::Integer(val) => val == 0,
+            Types::BigInt(val) => val == 0,
+            Types::Decimal(val) => val <= std::f64::EPSILON && val >= -std::f64::EPSILON,
+            _ => {
+                panic!("Type error for is_zero");
+            }
+        }
     }
 
+    // TODO: Implement this.
     fn is_inlined(&self) -> bool {
         false
     }
 
+    // TODO: Implement this.
     fn to_string(&self) -> String {
         String::from("")
     }
 
+    // TODO: Implement this.
     fn serialize_to(&self, dst: &mut [u8]) {}
 
+    // TODO: Implement this.
     fn deserialize_from(&mut self, src: &[u8]) {}
 
+    // TODO: Implement this.
     fn cast_to(&self, dst: &mut Self) -> bool {
         false
+    }
+}
+
+fn assert_comparable(lhs: &Value, rhs: &Value) {
+    if !lhs.is_comparable_to(rhs) {
+        panic!("Cannot compare");
     }
 }
 
