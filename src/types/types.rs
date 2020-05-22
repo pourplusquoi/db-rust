@@ -346,8 +346,8 @@ pub trait Operation: Sized {
     fn add(&self, other: &Self) -> Self;
     fn subtract(&self, other: &Self) -> Self;
     fn multiply(&self, other: &Self) -> Self;
-    fn divide(&self, other: &Self) -> Self;
-    fn modulo(&self, other: &Self) -> Self;
+    fn divide(&self, other: &Self) -> Option<Self>;
+    fn modulo(&self, other: &Self) -> Option<Self>;
     fn min(&self, other: &Self) -> Self;
     fn max(&self, other: &Self) -> Self;
     fn sqrt(&self) -> Self;

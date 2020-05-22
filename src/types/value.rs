@@ -6,6 +6,7 @@ use crate::types::types::Operation;
 use crate::types::types::Types;
 use crate::types::types::Varlen;
 use crate::types::varlen_util::*;
+use log::error;
 use std::cmp::PartialEq;
 
 #[derive(Clone)]
@@ -36,6 +37,17 @@ impl<'a> Value<'a> {
 
     pub fn is_null(&self) -> bool {
         self.size == PELOTON_VALUE_NULL
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        match self.content {
+            Types::TinyInt(_)
+            | Types::SmallInt(_)
+            | Types::Integer(_)
+            | Types::BigInt(_)
+            | Types::Decimal(_) => true,
+            _ => false,
+        }
     }
 
     pub fn is_integer(&self) -> bool {
@@ -106,29 +118,39 @@ impl<'a> Operation for Value<'a> {
         compare!(self, other, (|x, y| x >= y), (|x| x >= 0.0))
     }
 
-    // TODO: Implement this.
     fn add(&self, other: &Self) -> Self {
-        self.clone()
+        arithmetic!(self, other, (|x, y| x + y))
     }
 
-    // TODO: Implement this.
     fn subtract(&self, other: &Self) -> Self {
-        self.clone()
+        arithmetic!(self, other, (|x, y| x - y))
     }
 
-    // TODO: Implement this.
     fn multiply(&self, other: &Self) -> Self {
-        self.clone()
+        arithmetic!(self, other, (|x, y| x * y))
     }
 
-    // TODO: Implement this.
-    fn divide(&self, other: &Self) -> Self {
-        self.clone()
+    fn divide(&self, other: &Self) -> Option<Self> {
+        if other.is_zero() {
+            error!("[divide] Divide by zero error");
+            return None;
+        }
+        Some(arithmetic!(self, other, (|x, y| x / y)))
     }
 
-    // TODO: Implement this.
-    fn modulo(&self, other: &Self) -> Self {
-        self.clone()
+    fn modulo(&self, other: &Self) -> Option<Self> {
+        if other.is_zero() {
+            error!("[modulo] Divide by zero error");
+            return None;
+        }
+        match self.content {
+            Types::Decimal(val) => Some(arithmetic_decimal!(
+                val,
+                other,
+                (|x: f64, y: f64| x - (x / y).trunc() * y)
+            )),
+            _ => Some(arithmetic!(self, other, (|x, y| x % y))),
+        }
     }
 
     fn min(&self, other: &Self) -> Self {
@@ -235,6 +257,12 @@ fn almost_zero(val: f64) -> bool {
     val <= std::f64::EPSILON && val >= -std::f64::EPSILON
 }
 
+fn assert_numeric(val: &Value) {
+    if !val.is_numeric() {
+        panic!("Non numeric");
+    }
+}
+
 fn assert_comparable(lhs: &Value, rhs: &Value) {
     if !lhs.is_comparable_to(rhs) {
         panic!("Cannot compare");
@@ -276,7 +304,7 @@ mod tests {
     use crate::types::types::Str;
 
     #[test]
-    fn comparison_test() {
+    fn numeric_comparison() {
         let int1 = Value::new(Types::TinyInt(42));
         let int2 = Value::new(Types::SmallInt(42));
         let int3 = Value::new(Types::Integer(42));
@@ -286,7 +314,10 @@ mod tests {
         assert_eq!(Some(true), int1.eq(&int3));
         assert_eq!(Some(false), int1.eq(&int4));
         assert_eq!(Some(true), int1.eq(&int5));
+    }
 
+    #[test]
+    fn string_comparison() {
         let str1 = Value::new(Types::Varchar(Varlen::Owned(Str::Val("hello".to_string()))));
         let str2 = Value::new(Types::Varchar(Varlen::Borrowed(Str::Val("hello"))));
         let str3 = Value::new(Types::Varchar(Varlen::Owned(Str::MaxVal)));
@@ -303,5 +334,26 @@ mod tests {
         assert_eq!(Some(false), str1.ge(&str4));
         assert_eq!(Some(true), str3.eq(&str4));
         assert_eq!(Some(false), str3.ne(&str4));
+    }
+
+    #[test]
+    fn numeric_arithmetic() {
+        let int1 = Value::new(Types::TinyInt(2));
+        let int2 = Value::new(Types::SmallInt(3));
+        let int3 = Value::new(Types::Integer(5));
+        let int4 = Value::new(Types::BigInt(7));
+        let int5 = Value::new(Types::Integer(0));
+        let dec = Value::new(Types::Decimal(11.0));
+        assert_eq!(Some(true), int1.add(&int1).eq(&wrap!(4, TinyInt)));
+        assert_eq!(Some(true), int1.add(&int2).eq(&wrap!(5, SmallInt)));
+        assert_eq!(Some(true), int2.subtract(&int3).eq(&wrap!(-2, Integer)));
+        assert_eq!(Some(true), int3.multiply(&int4).eq(&wrap!(35, BigInt)));
+        assert_eq!(Some(true), int3.divide(&int4).unwrap().eq(&wrap!(0, BigInt)));
+        assert_eq!(Some(true), int4.divide(&int1).unwrap().eq(&wrap!(3, BigInt)));
+        assert_eq!(Some(true), int5.divide(&int3).unwrap().eq(&wrap!(0, Integer)));
+        assert_eq!(Some(true), int4.modulo(&int2).unwrap().eq(&wrap!(1, BigInt)));
+        assert_eq!(Some(true), int5.modulo(&int3).unwrap().eq(&wrap!(0, Integer)));
+        assert!(int4.divide(&int5).is_none());
+        assert!(int2.modulo(&int5).is_none());
     }
 }
