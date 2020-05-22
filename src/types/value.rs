@@ -464,5 +464,7 @@ mod tests {
         assert_eq!(Some(true), int2.max(&int3).eq(&int2));
         assert_eq!(Some(true), dec1.min(&dec2).eq(&dec1));
         assert_eq!(Some(true), dec1.max(&dec3).eq(&dec1));
+        assert_eq!(Some(true), int1.min(&dec1).eq(&int1));
+        assert_eq!(Some(true), int1.max(&dec1).eq(&dec1));
     }
 }
