@@ -254,20 +254,21 @@ impl<'a> Operation for Value<'a> {
 
     fn to_string(&self) -> String {
         match self.content {
-            Types::Boolean(val) => (if val == 0 {
-                "false"
-            } else if val == 1 {
-                "true"
-            } else {
-                "boolean_null"
-            })
-            .to_string(),
-            Types::TinyInt(val) => val.to_string(),
-            Types::SmallInt(val) => val.to_string(),
-            Types::Integer(val) => val.to_string(),
-            Types::BigInt(val) => val.to_string(),
-            Types::Decimal(val) => val.to_string(),
-            Types::Timestamp(val) => "".to_string(),
+            Types::Boolean(val) => {
+                if val == 0 {
+                    "false".to_string()
+                } else if val == 1 {
+                    "true".to_string()
+                } else {
+                    "boolean_null".to_string()
+                }
+            }
+            Types::TinyInt(_) => string!(self, "tinyint"),
+            Types::SmallInt(_) => string!(self, "smallint"),
+            Types::Integer(_) => string!(self, "integer"),
+            Types::BigInt(_) => string!(self, "bigint"),
+            Types::Decimal(_) => string!(self, "decimal"),
+            Types::Timestamp(val) => string!(self, human_readable(val)),
             Types::Varchar(ref vc) => match vc {
                 Varlen::Owned(Str::Val(val)) => val.clone(),
                 Varlen::Borrowed(Str::Val(val)) => val.to_string(),
@@ -309,6 +310,40 @@ fn varlen_value_cmp(lhs: &Varlen, rhs: &Value) -> i8 {
         Types::Varchar(ref varlen) => varlen_cmp(lhs, varlen),
         _ => varlen_cmp(lhs, &rhs.content.to_varlen()),
     }
+}
+
+fn human_readable(mut tm: u64) -> String {
+    let micro = (tm % 1000000) as u32;
+    tm /= 1000000;
+    let mut second = (tm % 100000) as u32;
+    let sec = (second % 60) as u16;
+    second /= 60;
+    let min = (second % 60) as u16;
+    second /= 60;
+    let hour = (second % 24) as u16;
+    tm /= 100000;
+    let year = (tm % 10000) as u16;
+    tm /= 10000;
+    let mut tz = (tm % 27) as i32;
+    tz -= 12;
+    tm /= 27;
+    let day = (tm % 32) as u16;
+    tm /= 32;
+    let month = tm as u16;
+    let mut s = format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:06}",
+        year, month, day, hour, min, sec, micro
+    );
+    if tz >= 0 {
+        s.push('+');
+    } else {
+        s.push('-');
+    }
+    if tz < 0 {
+        tz = -tz;
+    }
+    s.push_str(&format!("{:02}", tz));
+    s
 }
 
 fn get_size<'a>(content: &Types<'a>) -> u32 {
@@ -488,4 +523,10 @@ mod tests {
         assert_eq!(Some(true), int1.min(&dec1).eq(&int1));
         assert_eq!(Some(true), int1.max(&dec1).eq(&dec1));
     }
+
+    #[test]
+    fn serialize_and_deserialize() {}
+
+    #[test]
+    fn cast_test() {}
 }

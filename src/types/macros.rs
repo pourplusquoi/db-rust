@@ -244,6 +244,16 @@ macro_rules! nullas {
     }};
 }
 
+macro_rules! string {
+    ($x:ident, $y:expr) => {{
+        if $x.is_null() {
+            $y.to_string()
+        } else {
+            $x.to_string()
+        }
+    }};
+}
+
 macro_rules! generate_match {
     ($x:expr, $default:expr, $( { [$( $variant:ident ),*], $val:expr } ),*) => {{
         match $x {
