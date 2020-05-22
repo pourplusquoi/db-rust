@@ -181,74 +181,60 @@ impl<'a> Types<'a> {
         Self::Timestamp(0)
     }
 
-    pub fn owned(s: String) -> Self {
-        Self::Varchar(Varlen::Owned(Str::Val(s)))
-    }
-
-    pub fn borrowed(s: &'a str) -> Self {
-        Self::Varchar(Varlen::Borrowed(Str::Val(s)))
-    }
-
-    pub fn min_owned() -> Self {
-        Self::Varchar(Varlen::Owned(Str::Val("".to_string())))
-    }
-
-    pub fn max_owned() -> Self {
+    pub fn owned() -> Self {
         Self::Varchar(Varlen::Owned(Str::MaxVal))
     }
 
-    pub fn min_borrowed() -> Self {
-        Self::Varchar(Varlen::Borrowed(Str::Val("")))
-    }
-
-    pub fn max_borrowed() -> Self {
+    pub fn borrowed() -> Self {
         Self::Varchar(Varlen::Borrowed(Str::MaxVal))
     }
 
-    pub fn min_val(self) -> Self {
-        match self {
-            Self::Boolean(_) => Self::Boolean(0),
-            Self::TinyInt(_) => Self::TinyInt(PELOTON_INT8_MIN),
-            Self::SmallInt(_) => Self::SmallInt(PELOTON_INT16_MIN),
-            Self::Integer(_) => Self::Integer(PELOTON_INT32_MIN),
-            Self::BigInt(_) => Self::BigInt(PELOTON_INT64_MIN),
-            Self::Decimal(_) => Self::Decimal(PELOTON_DECIMAL_MIN),
-            Self::Timestamp(_) => Self::Timestamp(0),
+    pub fn min_val(mut self) -> Self {
+        match &mut self {
+            Self::Boolean(val) => *val = 0,
+            Self::TinyInt(val) => *val = PELOTON_INT8_MIN,
+            Self::SmallInt(val) => *val = PELOTON_INT16_MIN,
+            Self::Integer(val) => *val = PELOTON_INT32_MIN,
+            Self::BigInt(val) => *val = PELOTON_INT64_MIN,
+            Self::Decimal(val) => *val = PELOTON_DECIMAL_MIN,
+            Self::Timestamp(val) => *val = 0,
             Self::Varchar(vc) => match vc {
-                Varlen::Owned(_) => Self::min_owned(),
-                Varlen::Borrowed(_) => Self::min_borrowed(),
+                Varlen::Owned(val) => *val = Str::Val("".to_string()),
+                Varlen::Borrowed(val) => *val = Str::Val(""),
             },
         }
+        self
     }
 
-    pub fn max_val(self) -> Self {
-        match self {
-            Self::Boolean(_) => Self::Boolean(1),
-            Self::TinyInt(_) => Self::TinyInt(PELOTON_INT8_MAX),
-            Self::SmallInt(_) => Self::SmallInt(PELOTON_INT16_MAX),
-            Self::Integer(_) => Self::Integer(PELOTON_INT32_MAX),
-            Self::BigInt(_) => Self::BigInt(PELOTON_INT64_MAX),
-            Self::Decimal(_) => Self::Decimal(PELOTON_DECIMAL_MAX),
-            Self::Timestamp(_) => Self::Timestamp(PELOTON_TIMESTAMP_MAX),
+    pub fn max_val(mut self) -> Self {
+        match &mut self {
+            Self::Boolean(val) => *val = 1,
+            Self::TinyInt(val) => *val = PELOTON_INT8_MAX,
+            Self::SmallInt(val) => *val = PELOTON_INT16_MAX,
+            Self::Integer(val) => *val = PELOTON_INT32_MAX,
+            Self::BigInt(val) => *val = PELOTON_INT64_MAX,
+            Self::Decimal(val) => *val = PELOTON_DECIMAL_MAX,
+            Self::Timestamp(val) => *val = PELOTON_TIMESTAMP_MAX,
             Self::Varchar(vc) => match vc {
-                Varlen::Owned(_) => Self::max_owned(),
-                Varlen::Borrowed(_) => Self::max_borrowed(),
+                Varlen::Owned(val) => *val = Str::MaxVal,
+                Varlen::Borrowed(val) => *val = Str::MaxVal,
             },
         }
+        self
     }
 
-    pub fn null_val(self) -> Self {
-        match self {
-            Self::Boolean(_) => Self::Boolean(1),
-            Self::TinyInt(_) => Self::TinyInt(PELOTON_INT8_NULL),
-            Self::SmallInt(_) => Self::SmallInt(PELOTON_INT16_NULL),
-            Self::Integer(_) => Self::Integer(PELOTON_INT32_NULL),
-            Self::BigInt(_) => Self::BigInt(PELOTON_INT64_NULL),
-            Self::Decimal(_) => Self::Decimal(PELOTON_DECIMAL_NULL),
-            _ => {
-                panic!("Type error for null_val");
-            }
+    pub fn null_val(mut self) -> Self {
+        match &mut self {
+            Self::Boolean(val) => *val = PELOTON_BOOLEAN_NULL,
+            Self::TinyInt(val) => *val = PELOTON_INT8_NULL,
+            Self::SmallInt(val) => *val = PELOTON_INT16_NULL,
+            Self::Integer(val) => *val = PELOTON_INT32_NULL,
+            Self::BigInt(val) => *val = PELOTON_INT64_NULL,
+            Self::Decimal(val) => *val = PELOTON_DECIMAL_NULL,
+            Self::Timestamp(val) => *val = PELOTON_TIMESTAMP_NULL,
+            _ => panic!("Type error for null_val"),
         }
+        self
     }
 
     pub fn to_varlen(&self) -> Varlen {
@@ -260,27 +246,21 @@ impl<'a> Types<'a> {
             Self::BigInt(val) => Varlen::Owned(Str::Val(val.to_string())),
             Self::Decimal(val) => Varlen::Owned(Str::Val(val.to_string())),
             Self::Timestamp(val) => Varlen::Owned(Str::Val(val.to_string())),
-            _ => {
-                panic!("Type error for to_varlen");
-            }
+            _ => panic!("Type error for to_varlen"),
         }
     }
 
     pub fn get_as_bool(&self) -> i8 {
         match self {
             Self::Boolean(val) => *val as i8,
-            _ => {
-                panic!("Type error for get_as_bool");
-            }
+            _ => panic!("Type error for get_as_bool"),
         }
     }
 
     pub fn get_as_i8(&self) -> i8 {
         match self {
             Self::TinyInt(val) => *val as i8,
-            _ => {
-                panic!("Type error for get_as_i8");
-            }
+            _ => panic!("Type error for get_as_i8"),
         }
     }
 
@@ -288,9 +268,7 @@ impl<'a> Types<'a> {
         match self {
             Self::TinyInt(val) => *val as i16,
             Self::SmallInt(val) => *val as i16,
-            _ => {
-                panic!("Type error for get_as_i16");
-            }
+            _ => panic!("Type error for get_as_i16"),
         }
     }
 
@@ -299,9 +277,7 @@ impl<'a> Types<'a> {
             Self::TinyInt(val) => *val as i32,
             Self::SmallInt(val) => *val as i32,
             Self::Integer(val) => *val as i32,
-            _ => {
-                panic!("Type error for get_as_i32");
-            }
+            _ => panic!("Type error for get_as_i32"),
         }
     }
 
@@ -311,27 +287,21 @@ impl<'a> Types<'a> {
             Self::SmallInt(val) => *val as i64,
             Self::Integer(val) => *val as i64,
             Self::BigInt(val) => *val as i64,
-            _ => {
-                panic!("Type error for get_as_i64");
-            }
+            _ => panic!("Type error for get_as_i64"),
         }
     }
 
     pub fn get_as_u64(&self) -> u64 {
         match self {
             Self::Timestamp(val) => *val as u64,
-            _ => {
-                panic!("Type error for get_as_u64");
-            }
+            _ => panic!("Type error for get_as_u64"),
         }
     }
 
     pub fn get_as_f64(&self) -> f64 {
         match self {
             Self::Decimal(val) => *val as f64,
-            _ => {
-                panic!("Type error for get_as_f64");
-            }
+            _ => panic!("Type error for get_as_f64"),
         }
     }
 }
@@ -348,9 +318,9 @@ pub trait Operation: Sized {
     fn multiply(&self, other: &Self) -> Self;
     fn divide(&self, other: &Self) -> Option<Self>;
     fn modulo(&self, other: &Self) -> Option<Self>;
+    fn sqrt(&self) -> Option<Self>;
     fn min(&self, other: &Self) -> Self;
     fn max(&self, other: &Self) -> Self;
-    fn sqrt(&self) -> Self;
     fn null(&self, other: &Self) -> Self;
     fn is_zero(&self) -> bool;
     fn is_inlined(&self) -> bool;

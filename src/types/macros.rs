@@ -1,4 +1,4 @@
-macro_rules! wrap {
+macro_rules! value {
     ($x:expr, $variant:ident) => {
         Value::new(Types::$variant($x))
     };
@@ -7,15 +7,15 @@ macro_rules! wrap {
 macro_rules! arithmetic_tinyint {
     ($x:ident, $y:ident, $closure:tt) => {{
         match $y.content {
-            Types::TinyInt(rhs) => wrap!($closure($x, rhs), TinyInt),
-            Types::SmallInt(rhs) => wrap!($closure($x as i16, rhs), SmallInt),
-            Types::Integer(rhs) => wrap!($closure($x as i32, rhs), Integer),
-            Types::BigInt(rhs) => wrap!($closure($x as i64, rhs), BigInt),
-            Types::Decimal(rhs) => wrap!($closure($x as f64, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs), TinyInt),
+            Types::SmallInt(rhs) => value!($closure($x as i16, rhs), SmallInt),
+            Types::Integer(rhs) => value!($closure($x as i32, rhs), Integer),
+            Types::BigInt(rhs) => value!($closure($x as i64, rhs), BigInt),
+            Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::tinyint());
                 $y.cast_to(&mut rhs);
-                wrap!($closure($x, rhs.get_as_i8()), TinyInt)
+                value!($closure($x, rhs.get_as_i8()), TinyInt)
             }
         }
     }};
@@ -41,15 +41,15 @@ macro_rules! compare_tinyint {
 macro_rules! arithmetic_smallint {
     ($x:ident, $y:ident, $closure:tt) => {{
         match $y.content {
-            Types::TinyInt(rhs) => wrap!($closure($x, rhs as i16), SmallInt),
-            Types::SmallInt(rhs) => wrap!($closure($x, rhs), SmallInt),
-            Types::Integer(rhs) => wrap!($closure($x as i32, rhs), Integer),
-            Types::BigInt(rhs) => wrap!($closure($x as i64, rhs), BigInt),
-            Types::Decimal(rhs) => wrap!($closure($x as f64, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs as i16), SmallInt),
+            Types::SmallInt(rhs) => value!($closure($x, rhs), SmallInt),
+            Types::Integer(rhs) => value!($closure($x as i32, rhs), Integer),
+            Types::BigInt(rhs) => value!($closure($x as i64, rhs), BigInt),
+            Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::smallint());
                 $y.cast_to(&mut rhs);
-                wrap!($closure($x, rhs.get_as_i16()), SmallInt)
+                value!($closure($x, rhs.get_as_i16()), SmallInt)
             }
         }
     }};
@@ -75,15 +75,15 @@ macro_rules! compare_smallint {
 macro_rules! arithmetic_integer {
     ($x:ident, $y:ident, $closure:tt) => {{
         match $y.content {
-            Types::TinyInt(rhs) => wrap!($closure($x, rhs as i32), Integer),
-            Types::SmallInt(rhs) => wrap!($closure($x, rhs as i32), Integer),
-            Types::Integer(rhs) => wrap!($closure($x, rhs), Integer),
-            Types::BigInt(rhs) => wrap!($closure($x as i64, rhs), BigInt),
-            Types::Decimal(rhs) => wrap!($closure($x as f64, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs as i32), Integer),
+            Types::SmallInt(rhs) => value!($closure($x, rhs as i32), Integer),
+            Types::Integer(rhs) => value!($closure($x, rhs), Integer),
+            Types::BigInt(rhs) => value!($closure($x as i64, rhs), BigInt),
+            Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::integer());
                 $y.cast_to(&mut rhs);
-                wrap!($closure($x, rhs.get_as_i32()), Integer)
+                value!($closure($x, rhs.get_as_i32()), Integer)
             }
         }
     }};
@@ -109,15 +109,15 @@ macro_rules! compare_integer {
 macro_rules! arithmetic_bigint {
     ($x:ident, $y:ident, $closure:tt) => {{
         match $y.content {
-            Types::TinyInt(rhs) => wrap!($closure($x, rhs as i64), BigInt),
-            Types::SmallInt(rhs) => wrap!($closure($x, rhs as i64), BigInt),
-            Types::Integer(rhs) => wrap!($closure($x, rhs as i64), BigInt),
-            Types::BigInt(rhs) => wrap!($closure($x, rhs), BigInt),
-            Types::Decimal(rhs) => wrap!($closure($x as f64, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs as i64), BigInt),
+            Types::SmallInt(rhs) => value!($closure($x, rhs as i64), BigInt),
+            Types::Integer(rhs) => value!($closure($x, rhs as i64), BigInt),
+            Types::BigInt(rhs) => value!($closure($x, rhs), BigInt),
+            Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::bigint());
                 $y.cast_to(&mut rhs);
-                wrap!($closure($x, rhs.get_as_i64()), BigInt)
+                value!($closure($x, rhs.get_as_i64()), BigInt)
             }
         }
     }};
@@ -143,15 +143,15 @@ macro_rules! compare_bigint {
 macro_rules! arithmetic_decimal {
     ($x:ident, $y:ident, $closure:tt) => {{
         match $y.content {
-            Types::TinyInt(rhs) => wrap!($closure($x, rhs as f64), Decimal),
-            Types::SmallInt(rhs) => wrap!($closure($x, rhs as f64), Decimal),
-            Types::Integer(rhs) => wrap!($closure($x, rhs as f64), Decimal),
-            Types::BigInt(rhs) => wrap!($closure($x, rhs as f64), Decimal),
-            Types::Decimal(rhs) => wrap!($closure($x, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs as f64), Decimal),
+            Types::SmallInt(rhs) => value!($closure($x, rhs as f64), Decimal),
+            Types::Integer(rhs) => value!($closure($x, rhs as f64), Decimal),
+            Types::BigInt(rhs) => value!($closure($x, rhs as f64), Decimal),
+            Types::Decimal(rhs) => value!($closure($x, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::decimal());
                 $y.cast_to(&mut rhs);
-                wrap!($closure($x, rhs.get_as_f64()), Decimal)
+                value!($closure($x, rhs.get_as_f64()), Decimal)
             }
         }
     }};
@@ -179,7 +179,7 @@ macro_rules! compare_varchar {
         match $y.content {
             Types::Varchar(ref rhs) => $closure(varlen_cmp($x, rhs), 0),
             _ => {
-                let mut rhs = Value::new(Types::min_owned());
+                let mut rhs = Value::new(Types::owned());
                 $y.cast_to(&mut rhs);
                 $closure(varlen_value_cmp($x, &rhs), 0)
             }
@@ -242,7 +242,7 @@ macro_rules! forward {
 
 macro_rules! nullas {
     ($x:ident) => {{
-        Value::new(Types::null_val($x.content.clone()))
+        Value::new($x.content.clone().null_val())
     }};
 }
 
