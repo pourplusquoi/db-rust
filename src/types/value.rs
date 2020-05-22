@@ -101,28 +101,15 @@ impl<'a> Value<'a> {
 }
 
 impl<'a> Operation for Value<'a> {
-    // TODO: Implement this.
     fn eq(&self, other: &Self) -> Option<bool> {
-        assert_comparable(self, other);
-        if self.is_null() || other.is_null() {
-            return None;
-        }
         compare!(self, other, (|x, y| x == y), (|x: Value| x.is_zero()))
     }
 
     fn ne(&self, other: &Self) -> Option<bool> {
-        assert_comparable(self, other);
-        if self.is_null() || other.is_null() {
-            return None;
-        }
         compare!(self, other, (|x, y| x != y), (|x: Value| !x.is_zero()))
     }
 
     fn lt(&self, other: &Self) -> Option<bool> {
-        assert_comparable(self, other);
-        if self.is_null() || other.is_null() {
-            return None;
-        }
         compare!(
             self,
             other,
@@ -132,10 +119,6 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn le(&self, other: &Self) -> Option<bool> {
-        assert_comparable(self, other);
-        if self.is_null() || other.is_null() {
-            return None;
-        }
         compare!(
             self,
             other,
@@ -145,10 +128,6 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn gt(&self, other: &Self) -> Option<bool> {
-        assert_comparable(self, other);
-        if self.is_null() || other.is_null() {
-            return None;
-        }
         compare!(
             self,
             other,
