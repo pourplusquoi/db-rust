@@ -137,10 +137,6 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn ge(&self, other: &Self) -> Option<bool> {
-        assert_comparable(self, other);
-        if self.is_null() || other.is_null() {
-            return None;
-        }
         compare!(
             self,
             other,
