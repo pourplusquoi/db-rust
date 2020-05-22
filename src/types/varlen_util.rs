@@ -28,7 +28,6 @@ fn str_varlen_cmp(lhs: &str, rhs: &Varlen) -> i8 {
     }
 }
 
-// TODO: Implement this.
 fn str_cmp(lhs: &str, rhs: &str) -> i8 {
     for (i, j) in lhs.chars().zip(rhs.chars()) {
         if i > j {
