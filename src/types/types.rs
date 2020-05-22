@@ -33,7 +33,7 @@ impl Str<String> {
     pub fn len(&self) -> usize {
         match self {
             Str::Val(s) => s.len(),
-            Str::MaxVal => PELOTON_VALUE_NULL as usize,
+            Str::MaxVal => 0 as usize,
         }
     }
 

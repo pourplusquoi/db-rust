@@ -6,6 +6,7 @@ use crate::types::types::Operation;
 use crate::types::types::Types;
 use crate::types::types::Varlen;
 use crate::types::varlen_util::*;
+use std::cmp::PartialEq;
 
 #[derive(Clone)]
 pub struct Value<'a> {
@@ -69,80 +70,40 @@ impl<'a> Value<'a> {
         }
     }
 
-    fn get_as_bool(&self) -> i8 {
-        self.content.get_as_bool()
-    }
-
-    fn get_as_i8(&self) -> i8 {
-        self.content.get_as_i8()
-    }
-
-    fn get_as_i16(&self) -> i16 {
-        self.content.get_as_i16()
-    }
-
-    fn get_as_i32(&self) -> i32 {
-        self.content.get_as_i32()
-    }
-
-    fn get_as_i64(&self) -> i64 {
-        self.content.get_as_i64()
-    }
-
-    fn get_as_u64(&self) -> u64 {
-        self.content.get_as_u64()
-    }
-
-    fn get_as_f64(&self) -> f64 {
-        self.content.get_as_f64()
-    }
-
     // pub fn data() -> {}
+
+    forward!(content, get_as_bool, i8);
+    forward!(content, get_as_i8, i8);
+    forward!(content, get_as_i16, i16);
+    forward!(content, get_as_i32, i32);
+    forward!(content, get_as_i64, i64);
+    forward!(content, get_as_u64, u64);
+    forward!(content, get_as_f64, f64);
 }
 
 impl<'a> Operation for Value<'a> {
     fn eq(&self, other: &Self) -> Option<bool> {
-        compare!(self, other, (|x, y| x == y), (|x: Value| x.is_zero()))
+        compare!(self, other, (|x, y| x == y), (|x| almost_zero(x)))
     }
 
     fn ne(&self, other: &Self) -> Option<bool> {
-        compare!(self, other, (|x, y| x != y), (|x: Value| !x.is_zero()))
+        compare!(self, other, (|x, y| x != y), (|x| !almost_zero(x)))
     }
 
     fn lt(&self, other: &Self) -> Option<bool> {
-        compare!(
-            self,
-            other,
-            (|x, y| x < y),
-            (|x: Value| x.get_as_f64() < 0.0)
-        )
+        compare!(self, other, (|x, y| x < y), (|x| x < 0.0))
     }
 
     fn le(&self, other: &Self) -> Option<bool> {
-        compare!(
-            self,
-            other,
-            (|x, y| x <= y),
-            (|x: Value| x.get_as_f64() <= 0.0)
-        )
+        compare!(self, other, (|x, y| x <= y), (|x| x <= 0.0))
     }
 
     fn gt(&self, other: &Self) -> Option<bool> {
-        compare!(
-            self,
-            other,
-            (|x, y| x > y),
-            (|x: Value| x.get_as_f64() > 0.0)
-        )
+        compare!(self, other, (|x, y| x > y), (|x| x > 0.0))
     }
 
     fn ge(&self, other: &Self) -> Option<bool> {
-        compare!(
-            self,
-            other,
-            (|x, y| x >= y),
-            (|x: Value| x.get_as_f64() >= 0.0)
-        )
+        compare!(self, other, (|x, y| x >= y), (|x| x >= 0.0))
     }
 
     // TODO: Implement this.
@@ -201,43 +162,35 @@ impl<'a> Operation for Value<'a> {
 
     fn null(&self, other: &Self) -> Self {
         match self.content {
-            Types::TinyInt(_) => match other.content {
-                Types::TinyInt(_)
-                | Types::SmallInt(_)
-                | Types::Integer(_)
-                | Types::BigInt(_)
-                | Types::Decimal(_) => Some(Value::new(other.content.clone())),
-                _ => None,
-            },
-            Types::SmallInt(_) => match other.content {
-                Types::TinyInt(_) => Some(Value::new(self.content.clone())),
-                Types::SmallInt(_) | Types::Integer(_) | Types::BigInt(_) | Types::Decimal(_) => {
-                    Some(Value::new(other.content.clone()))
-                }
-                _ => None,
-            },
-            Types::Integer(_) => match other.content {
-                Types::TinyInt(_) | Types::SmallInt(_) => Some(Value::new(self.content.clone())),
-                Types::Integer(_) | Types::BigInt(_) | Types::Decimal(_) => {
-                    Some(Value::new(other.content.clone()))
-                }
-                _ => None,
-            },
-            Types::BigInt(_) => match other.content {
-                Types::TinyInt(_) | Types::SmallInt(_) | Types::Integer(_) => {
-                    Some(Value::new(self.content.clone()))
-                }
-                Types::BigInt(_) | Types::Decimal(_) => Some(Value::new(other.content.clone())),
-                _ => None,
-            },
-            Types::Decimal(_) => match other.content {
-                Types::TinyInt(_)
-                | Types::SmallInt(_)
-                | Types::Integer(_)
-                | Types::BigInt(_)
-                | Types::Decimal(_) => Some(Value::new(self.content.clone())),
-                _ => None,
-            },
+            Types::TinyInt(_) => generate_match!(
+                other.content,
+                None,
+                { [TinyInt], Some(nullas!(self)) },
+                { [SmallInt, Integer, BigInt, Decimal], Some(nullas!(other)) }
+            ),
+            Types::SmallInt(_) => generate_match!(
+                other.content,
+                None,
+                { [TinyInt, SmallInt], Some(nullas!(self)) },
+                { [Integer, BigInt, Decimal], Some(nullas!(other)) }
+            ),
+            Types::Integer(_) => generate_match!(
+                other.content,
+                None,
+                { [TinyInt, SmallInt, Integer], Some(nullas!(self)) },
+                { [BigInt, Decimal], Some(nullas!(other)) }
+            ),
+            Types::BigInt(_) => generate_match!(
+                other.content,
+                None,
+                { [TinyInt, SmallInt, Integer, BigInt], Some(nullas!(self)) },
+                { [Decimal], Some(nullas!(other)) }
+            ),
+            Types::Decimal(_) => generate_match!(
+                other.content,
+                None,
+                { [TinyInt, SmallInt, Integer, BigInt, Decimal], Some(nullas!(self)) }
+            ),
             _ => None,
         }
         .expect("Type error for null")
@@ -297,56 +250,58 @@ fn varlen_value_cmp(lhs: &Varlen, rhs: &Value) -> i8 {
 
 fn get_size<'a>(content: &Types<'a>) -> u32 {
     match content {
-        Types::Boolean(val) => {
-            if *val == PELOTON_BOOLEAN_NULL {
-                PELOTON_VALUE_NULL
-            } else {
-                0
-            }
-        }
-        Types::TinyInt(val) => {
-            if *val == PELOTON_INT8_NULL {
-                PELOTON_VALUE_NULL
-            } else {
-                0
-            }
-        }
-        Types::SmallInt(val) => {
-            if *val == PELOTON_INT16_NULL {
-                PELOTON_VALUE_NULL
-            } else {
-                0
-            }
-        }
-        Types::Integer(val) => {
-            if *val == PELOTON_INT32_NULL {
-                PELOTON_VALUE_NULL
-            } else {
-                0
-            }
-        }
-        Types::BigInt(val) => {
-            if *val == PELOTON_INT64_NULL {
-                PELOTON_VALUE_NULL
-            } else {
-                0
-            }
-        }
-        Types::Timestamp(val) => {
-            if *val == PELOTON_TIMESTAMP_NULL {
-                PELOTON_VALUE_NULL
-            } else {
-                0
-            }
-        }
-        Types::Decimal(val) => {
-            if *val == PELOTON_DECIMAL_NULL {
-                PELOTON_VALUE_NULL
-            } else {
-                0
-            }
-        }
+        Types::Boolean(val) => compute_size(*val, PELOTON_BOOLEAN_NULL),
+        Types::TinyInt(val) => compute_size(*val, PELOTON_INT8_NULL),
+        Types::SmallInt(val) => compute_size(*val, PELOTON_INT16_NULL),
+        Types::Integer(val) => compute_size(*val, PELOTON_INT32_NULL),
+        Types::BigInt(val) => compute_size(*val, PELOTON_INT64_NULL),
+        Types::Timestamp(val) => compute_size(*val, PELOTON_TIMESTAMP_NULL),
+        Types::Decimal(val) => compute_size(*val, PELOTON_DECIMAL_NULL),
         // Assuming the length of string fits in u32.
         Types::Varchar(val) => val.len() as u32,
+    }
+}
+
+fn compute_size<T: PartialEq>(val: T, null: T) -> u32 {
+    if val == null {
+        PELOTON_VALUE_NULL
+    } else {
+        0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::types::Str;
+
+    #[test]
+    fn comparison_test() {
+        let int1 = Value::new(Types::TinyInt(42));
+        let int2 = Value::new(Types::SmallInt(42));
+        let int3 = Value::new(Types::Integer(42));
+        let int4 = Value::new(Types::Integer(100));
+        let int5 = Value::new(Types::BigInt(42));
+        assert_eq!(Some(true), int1.eq(&int2));
+        assert_eq!(Some(true), int1.eq(&int3));
+        assert_eq!(Some(false), int1.eq(&int4));
+        assert_eq!(Some(true), int1.eq(&int5));
+
+        let str1 = Value::new(Types::Varchar(Varlen::Owned(Str::Val("hello".to_string()))));
+        let str2 = Value::new(Types::Varchar(Varlen::Borrowed(Str::Val("hello"))));
+        let str3 = Value::new(Types::Varchar(Varlen::Owned(Str::MaxVal)));
+        let str4 = Value::new(Types::Varchar(Varlen::Borrowed(Str::MaxVal)));
+        assert_eq!(Some(true), str1.eq(&str2));
+        assert_eq!(Some(false), str1.ne(&str2));
+        assert_eq!(Some(true), str1.lt(&str3));
+        assert_eq!(Some(true), str1.le(&str3));
+        assert_eq!(Some(false), str1.gt(&str3));
+        assert_eq!(Some(false), str1.ge(&str3));
+        assert_eq!(Some(true), str1.lt(&str4));
+        assert_eq!(Some(true), str1.le(&str4));
+        assert_eq!(Some(false), str1.gt(&str4));
+        assert_eq!(Some(false), str1.ge(&str4));
+        assert_eq!(Some(true), str3.eq(&str4));
+        assert_eq!(Some(false), str3.ne(&str4));
     }
 }
