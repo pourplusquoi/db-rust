@@ -1,8 +1,8 @@
-#![allow(dead_code)]
 #![allow(unused_variables)]
 
 use crate::types::limits::*;
 use crate::types::types::Operation;
+use crate::types::types::Str;
 use crate::types::types::Types;
 use crate::types::types::Varlen;
 use crate::types::varlen_util::*;
@@ -81,8 +81,6 @@ impl<'a> Value<'a> {
             _ => false,
         }
     }
-
-    // pub fn data() -> {}
 
     forward!(content, get_as_bool, i8);
     forward!(content, get_as_i8, i8);
@@ -245,14 +243,37 @@ impl<'a> Operation for Value<'a> {
         }
     }
 
-    // TODO: Implement this.
+    // Is the data inlined into this classes storage space, or must it be accessed
+    // through an indirection/pointer?
     fn is_inlined(&self) -> bool {
-        false
+        match self.content {
+            Types::Varchar(_) => false,
+            _ => true,
+        }
     }
 
-    // TODO: Implement this.
     fn to_string(&self) -> String {
-        String::from("")
+        match self.content {
+            Types::Boolean(val) => (if val == 0 {
+                "false"
+            } else if val == 1 {
+                "true"
+            } else {
+                "boolean_null"
+            })
+            .to_string(),
+            Types::TinyInt(val) => val.to_string(),
+            Types::SmallInt(val) => val.to_string(),
+            Types::Integer(val) => val.to_string(),
+            Types::BigInt(val) => val.to_string(),
+            Types::Decimal(val) => val.to_string(),
+            Types::Timestamp(val) => "".to_string(),
+            Types::Varchar(ref vc) => match vc {
+                Varlen::Owned(Str::Val(val)) => val.clone(),
+                Varlen::Borrowed(Str::Val(val)) => val.to_string(),
+                _ => "varchar_max".to_string(),
+            },
+        }
     }
 
     // TODO: Implement this.
@@ -359,17 +380,17 @@ mod tests {
         let int5 = Value::new(Types::Integer(0));
         let dec1 = Value::new(Types::Decimal(10.0));
         let dec2 = Value::new(Types::Decimal(0.0));
-       
+
         assert_eq!(Some(true), int1.add(&int1).eq(&value!(4, TinyInt)));
         assert_eq!(Some(true), int1.add(&int2).eq(&value!(5, SmallInt)));
-       
+
         assert_eq!(Some(true), int2.subtract(&int3).eq(&value!(-2, Integer)));
         assert_eq!(Some(true), dec1.subtract(&int3).eq(&value!(5.0, Decimal)));
-       
+
         assert_eq!(Some(true), int3.multiply(&int4).eq(&value!(35, BigInt)));
         assert_eq!(Some(true), dec1.multiply(&int4).eq(&value!(70.0, Decimal)));
         assert_eq!(Some(true), int3.multiply(&dec1).eq(&value!(50.0, Decimal)));
-        
+
         assert_eq!(
             Some(true),
             int3.divide(&int4).unwrap().eq(&value!(0, BigInt))
@@ -390,7 +411,7 @@ mod tests {
             Some(true),
             int1.divide(&dec1).unwrap().eq(&value!(0.2, Decimal))
         );
-        
+
         assert_eq!(
             Some(true),
             int4.modulo(&int2).unwrap().eq(&value!(1, BigInt))
@@ -403,7 +424,7 @@ mod tests {
             Some(true),
             dec1.modulo(&int1).unwrap().eq(&value!(0.0, Decimal))
         );
-        
+
         assert!(int4.divide(&int5).is_none());
         assert!(int4.divide(&dec2).is_none());
         assert!(int2.modulo(&int5).is_none());

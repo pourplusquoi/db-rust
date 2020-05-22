@@ -34,8 +34,6 @@ pub const PELOTON_TIMESTAMP_NULL: u64 = std::u64::MAX;
 pub const PELOTON_DATE_NULL: u64 = 0;
 pub const PELOTON_BOOLEAN_NULL: i8 = i8::MIN;
 
-pub const PELOTON_VARCHAR_MAX_LEN: u32 = u32::MAX;
-
 // Use to make TEXT type as the alias of VARCHAR(TEXT_MAX_LENGTH)
 const PELOTON_TEXT_MAX_LEN: u32 = 1000000000;
 

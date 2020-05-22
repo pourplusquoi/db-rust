@@ -224,9 +224,7 @@ macro_rules! arithmetic {
                 Types::Integer(lhs) => arithmetic_integer!(lhs, $y, $closure),
                 Types::BigInt(lhs) => arithmetic_bigint!(lhs, $y, $closure),
                 Types::Decimal(lhs) => arithmetic_decimal!(lhs, $y, $closure),
-                _ => {
-                    panic!("Type error for arithmetic");
-                }
+                _ => panic!("Type error for arithmetic"),
             }
         }
     }};
