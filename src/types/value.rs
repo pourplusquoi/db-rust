@@ -3,9 +3,9 @@
 
 use crate::types::limits::*;
 use crate::types::types::Operation;
-use crate::types::types::Str;
 use crate::types::types::Types;
 use crate::types::types::Varlen;
+use crate::types::varlen_util::*;
 
 #[derive(Clone)]
 pub struct Value<'a> {
@@ -72,21 +72,27 @@ impl<'a> Value<'a> {
     fn get_as_bool(&self) -> i8 {
         self.content.get_as_bool()
     }
+
     fn get_as_i8(&self) -> i8 {
         self.content.get_as_i8()
     }
+
     fn get_as_i16(&self) -> i16 {
         self.content.get_as_i16()
     }
+
     fn get_as_i32(&self) -> i32 {
         self.content.get_as_i32()
     }
+
     fn get_as_i64(&self) -> i64 {
         self.content.get_as_i64()
     }
+
     fn get_as_u64(&self) -> u64 {
         self.content.get_as_u64()
     }
+
     fn get_as_f64(&self) -> f64 {
         self.content.get_as_f64()
     }
@@ -109,7 +115,7 @@ impl<'a> Operation for Value<'a> {
             Types::BigInt(_) => self.get_as_i64() == other.get_as_i64(),
             Types::Timestamp(_) => self.get_as_u64() == other.get_as_u64(),
             Types::Decimal(_) => self.subtract(other).is_zero(),
-            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) == 0,
+            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) == 0,
         })
     }
 
@@ -126,7 +132,7 @@ impl<'a> Operation for Value<'a> {
             Types::BigInt(_) => self.get_as_i64() != other.get_as_i64(),
             Types::Timestamp(_) => self.get_as_u64() != other.get_as_u64(),
             Types::Decimal(_) => !self.subtract(other).is_zero(),
-            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) == 0,
+            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) == 0,
         })
     }
 
@@ -143,7 +149,7 @@ impl<'a> Operation for Value<'a> {
             Types::BigInt(_) => self.get_as_i64() < other.get_as_i64(),
             Types::Timestamp(_) => self.get_as_u64() < other.get_as_u64(),
             Types::Decimal(_) => self.subtract(other).get_as_f64() < 0.0,
-            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) < 0,
+            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) < 0,
         })
     }
 
@@ -160,7 +166,7 @@ impl<'a> Operation for Value<'a> {
             Types::BigInt(_) => self.get_as_i64() <= other.get_as_i64(),
             Types::Timestamp(_) => self.get_as_u64() <= other.get_as_u64(),
             Types::Decimal(_) => self.subtract(other).get_as_f64() <= 0.0,
-            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) <= 0,
+            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) <= 0,
         })
     }
 
@@ -177,7 +183,7 @@ impl<'a> Operation for Value<'a> {
             Types::BigInt(_) => self.get_as_i64() > other.get_as_i64(),
             Types::Timestamp(_) => self.get_as_u64() > other.get_as_u64(),
             Types::Decimal(_) => self.subtract(other).get_as_f64() > 0.0,
-            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) > 0,
+            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) > 0,
         })
     }
 
@@ -194,7 +200,7 @@ impl<'a> Operation for Value<'a> {
             Types::BigInt(_) => self.get_as_i64() >= other.get_as_i64(),
             Types::Timestamp(_) => self.get_as_u64() >= other.get_as_u64(),
             Types::Decimal(_) => self.subtract(other).get_as_f64() >= 0.0,
-            Types::Varchar(ref varlen) => varlen_cmp(varlen, other) >= 0,
+            Types::Varchar(ref varlen) => varlen_value_cmp(varlen, other) >= 0,
         })
     }
 
@@ -341,9 +347,11 @@ fn assert_comparable(lhs: &Value, rhs: &Value) {
     }
 }
 
-// TODO: Implement this.
-fn varlen_cmp(lhs: &Varlen, rhs: &Value) -> i8 {
-    0
+fn varlen_value_cmp(lhs: &Varlen, rhs: &Value) -> i8 {
+    match rhs.content {
+        Types::Varchar(ref varlen) => varlen_cmp(lhs, varlen),
+        _ => varlen_cmp(lhs, &rhs.content.to_varlen()),
+    }
 }
 
 fn get_size<'a>(content: &Types<'a>) -> u32 {

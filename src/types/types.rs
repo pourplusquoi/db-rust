@@ -251,21 +251,17 @@ impl<'a> Types<'a> {
         }
     }
 
-    // pub fn to_varlen(&self) -> Varlen {
-    //     match self {
-    //         Self::TinyInt(val) ->
-    //         // Varlen::Owned()
-    //         _ => {
-    //             panic!("Type error for to_varlen");
-    //         }
-    //     }
-    // }
-
-    pub fn borrow_varlen(&self) -> &Varlen {
+    pub fn to_varlen(&self) -> Varlen {
         match self {
-            Self::Varchar(val) => val,
+            Self::Boolean(val) => Varlen::Owned(Str::Val(val.to_string())),
+            Self::TinyInt(val) => Varlen::Owned(Str::Val(val.to_string())),
+            Self::SmallInt(val) => Varlen::Owned(Str::Val(val.to_string())),
+            Self::Integer(val) => Varlen::Owned(Str::Val(val.to_string())),
+            Self::BigInt(val) => Varlen::Owned(Str::Val(val.to_string())),
+            Self::Decimal(val) => Varlen::Owned(Str::Val(val.to_string())),
+            Self::Timestamp(val) => Varlen::Owned(Str::Val(val.to_string())),
             _ => {
-                panic!("Type error for borrow_varlen");
+                panic!("Type error for to_varlen");
             }
         }
     }
