@@ -1,5 +1,6 @@
 #![allow(unused_variables)]
 
+use crate::common::reinterpret;
 use crate::logging::error_logging::ErrorLogging;
 use crate::types::error::Error;
 use crate::types::error::ErrorKind;
@@ -278,11 +279,51 @@ impl<'a> Operation for Value<'a> {
         }
     }
 
-    // TODO: Implement this.
-    fn serialize_to(&self, dst: &mut [u8]) {}
+    // The caller needs to make sure that |dst| has enough space to hold data.
+    fn serialize_to(&self, dst: &mut [u8]) {
+        match self.content {
+            Types::Boolean(val) => reinterpret::write_i8(dst, val),
+            Types::TinyInt(val) => reinterpret::write_i8(dst, val),
+            Types::SmallInt(val) => reinterpret::write_i16(dst, val),
+            Types::Integer(val) => reinterpret::write_i32(dst, val),
+            Types::BigInt(val) => reinterpret::write_i64(dst, val),
+            Types::Decimal(val) => reinterpret::write_f64(dst, val),
+            Types::Timestamp(val) => reinterpret::write_u64(dst, val),
+            Types::Varchar(ref vc) => match vc {
+                Varlen::Owned(Str::Val(val)) => {
+                    reinterpret::write_i8(dst, 0);
+                    reinterpret::write_str(&mut dst[1..], val);
+                }
+                Varlen::Borrowed(Str::Val(val)) => {
+                    reinterpret::write_i8(dst, 0);
+                    reinterpret::write_str(&mut dst[1..], val);
+                }
+                _ => reinterpret::write_i8(dst, 1),
+            },
+        }
+    }
 
-    // TODO: Implement this.
-    fn deserialize_from(&mut self, src: &[u8]) {}
+    // The caller needs to make sure that |src| is valid.
+    fn deserialize_from(&mut self, src: &[u8]) {
+        match &mut self.content {
+            Types::Boolean(val) => *val = reinterpret::read_i8(src),
+            Types::TinyInt(val) => *val = reinterpret::read_i8(src),
+            Types::SmallInt(val) => *val = reinterpret::read_i16(src),
+            Types::Integer(val) => *val = reinterpret::read_i32(src),
+            Types::BigInt(val) => *val = reinterpret::read_i64(src),
+            Types::Decimal(val) => *val = reinterpret::read_f64(src),
+            Types::Timestamp(val) => *val = reinterpret::read_u64(src),
+            Types::Varchar(vc) => {
+                let byte = reinterpret::read_i8(src);
+                if byte == 0 {
+                    let s = reinterpret::read_str(&src[1..]).to_string();
+                    *vc = Varlen::Owned(Str::Val(s));
+                } else {
+                    *vc = Varlen::Owned(Str::MaxVal);
+                }
+            }
+        }
+    }
 
     // TODO: Implement this.
     fn cast_to(&self, dst: &mut Self) -> Result<(), Error> {
@@ -545,7 +586,38 @@ mod tests {
     }
 
     #[test]
-    fn serialize_and_deserialize() {}
+    fn serialize_and_deserialize() {
+        let mut buffer = [0; 100];
+
+        let intw = value!(123454321, BigInt);
+        let mut intr = Value::new(Types::bigint());
+        intw.serialize_to(&mut buffer);
+        intr.deserialize_from(&buffer);
+        assert_eq!(123454321, intr.get_as_i64().unwrap());
+
+        let strw = value!(
+            Varlen::Borrowed(Str::Val("orange is not the only fruit")),
+            Varchar
+        );
+        let mut strr = Value::new(Types::borrowed());
+        strw.serialize_to(&mut buffer);
+        strr.deserialize_from(&buffer);
+        match strr.content {
+            Types::Varchar(Varlen::Owned(Str::Val(s))) => {
+                assert_eq!("orange is not the only fruit", s)
+            }
+            _ => panic!("fail"),
+        }
+
+        let strw = value!(Varlen::Owned(Str::MaxVal), Varchar);
+        let mut strr = Value::new(Types::owned());
+        strw.serialize_to(&mut buffer);
+        strr.deserialize_from(&buffer);
+        match strr.content {
+            Types::Varchar(Varlen::Owned(Str::MaxVal)) => (),
+            _ => panic!("fail"),
+        }
+    }
 
     #[test]
     fn cast_test() {}

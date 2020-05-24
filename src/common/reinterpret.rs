@@ -1,3 +1,33 @@
+pub fn read_i8(data: &[u8]) -> i8 {
+    unsafe { *(&data[0..1] as *const [u8] as *const i8) }
+}
+
+pub fn write_i8(data: &mut [u8], num: i8) {
+    unsafe {
+        *(&mut data[0..1] as *mut [u8] as *mut i8) = num;
+    }
+}
+
+pub fn read_i16(data: &[u8]) -> i16 {
+    unsafe { *(&data[0..2] as *const [u8] as *const i16) }
+}
+
+pub fn write_i16(data: &mut [u8], num: i16) {
+    unsafe {
+        *(&mut data[0..2] as *mut [u8] as *mut i16) = num;
+    }
+}
+
+pub fn read_i32(data: &[u8]) -> i32 {
+    unsafe { *(&data[0..4] as *const [u8] as *const i32) }
+}
+
+pub fn write_i32(data: &mut [u8], num: i32) {
+    unsafe {
+        *(&mut data[0..4] as *mut [u8] as *mut i32) = num;
+    }
+}
+
 pub fn read_u32(data: &[u8]) -> u32 {
     unsafe { *(&data[0..4] as *const [u8] as *const u32) }
 }
@@ -5,6 +35,16 @@ pub fn read_u32(data: &[u8]) -> u32 {
 pub fn write_u32(data: &mut [u8], num: u32) {
     unsafe {
         *(&mut data[0..4] as *mut [u8] as *mut u32) = num;
+    }
+}
+
+pub fn read_i64(data: &[u8]) -> i64 {
+    unsafe { *(&data[0..8] as *const [u8] as *const i64) }
+}
+
+pub fn write_i64(data: &mut [u8], num: i64) {
+    unsafe {
+        *(&mut data[0..8] as *mut [u8] as *mut i64) = num;
     }
 }
 
@@ -18,13 +58,13 @@ pub fn write_u64(data: &mut [u8], num: u64) {
     }
 }
 
-pub fn read_i32(data: &[u8]) -> i32 {
-    unsafe { *(&data[0..4] as *const [u8] as *const i32) }
+pub fn read_f64(data: &[u8]) -> f64 {
+    unsafe { *(&data[0..8] as *const [u8] as *const f64) }
 }
 
-pub fn write_i32(data: &mut [u8], num: i32) {
+pub fn write_f64(data: &mut [u8], num: f64) {
     unsafe {
-        *(&mut data[0..4] as *mut [u8] as *mut i32) = num;
+        *(&mut data[0..8] as *mut [u8] as *mut f64) = num;
     }
 }
 
