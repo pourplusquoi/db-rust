@@ -188,11 +188,11 @@ impl<'a> Types<'a> {
     pub fn min_val(mut self) -> Self {
         match &mut self {
             Self::Boolean(val) => *val = 0,
-            Self::TinyInt(val) => *val = PELOTON_INT8_MIN,
-            Self::SmallInt(val) => *val = PELOTON_INT16_MIN,
-            Self::Integer(val) => *val = PELOTON_INT32_MIN,
-            Self::BigInt(val) => *val = PELOTON_INT64_MIN,
-            Self::Decimal(val) => *val = PELOTON_DECIMAL_MIN,
+            Self::TinyInt(val) => *val = RSDB_INT8_MIN,
+            Self::SmallInt(val) => *val = RSDB_INT16_MIN,
+            Self::Integer(val) => *val = RSDB_INT32_MIN,
+            Self::BigInt(val) => *val = RSDB_INT64_MIN,
+            Self::Decimal(val) => *val = RSDB_DECIMAL_MIN,
             Self::Timestamp(val) => *val = 0,
             Self::Varchar(vc) => match vc {
                 Varlen::Owned(val) => *val = Str::Val("".to_string()),
@@ -205,12 +205,12 @@ impl<'a> Types<'a> {
     pub fn max_val(mut self) -> Self {
         match &mut self {
             Self::Boolean(val) => *val = 1,
-            Self::TinyInt(val) => *val = PELOTON_INT8_MAX,
-            Self::SmallInt(val) => *val = PELOTON_INT16_MAX,
-            Self::Integer(val) => *val = PELOTON_INT32_MAX,
-            Self::BigInt(val) => *val = PELOTON_INT64_MAX,
-            Self::Decimal(val) => *val = PELOTON_DECIMAL_MAX,
-            Self::Timestamp(val) => *val = PELOTON_TIMESTAMP_MAX,
+            Self::TinyInt(val) => *val = RSDB_INT8_MAX,
+            Self::SmallInt(val) => *val = RSDB_INT16_MAX,
+            Self::Integer(val) => *val = RSDB_INT32_MAX,
+            Self::BigInt(val) => *val = RSDB_INT64_MAX,
+            Self::Decimal(val) => *val = RSDB_DECIMAL_MAX,
+            Self::Timestamp(val) => *val = RSDB_TIMESTAMP_MAX,
             Self::Varchar(vc) => match vc {
                 Varlen::Owned(val) => *val = Str::MaxVal,
                 Varlen::Borrowed(val) => *val = Str::MaxVal,
@@ -221,13 +221,13 @@ impl<'a> Types<'a> {
 
     pub fn null_val(mut self) -> Self {
         match &mut self {
-            Self::Boolean(val) => *val = PELOTON_BOOLEAN_NULL,
-            Self::TinyInt(val) => *val = PELOTON_INT8_NULL,
-            Self::SmallInt(val) => *val = PELOTON_INT16_NULL,
-            Self::Integer(val) => *val = PELOTON_INT32_NULL,
-            Self::BigInt(val) => *val = PELOTON_INT64_NULL,
-            Self::Decimal(val) => *val = PELOTON_DECIMAL_NULL,
-            Self::Timestamp(val) => *val = PELOTON_TIMESTAMP_NULL,
+            Self::Boolean(val) => *val = RSDB_BOOLEAN_NULL,
+            Self::TinyInt(val) => *val = RSDB_INT8_NULL,
+            Self::SmallInt(val) => *val = RSDB_INT16_NULL,
+            Self::Integer(val) => *val = RSDB_INT32_NULL,
+            Self::BigInt(val) => *val = RSDB_INT64_NULL,
+            Self::Decimal(val) => *val = RSDB_DECIMAL_NULL,
+            Self::Timestamp(val) => *val = RSDB_TIMESTAMP_NULL,
             _ => panic!("Type error for null_val"),
         }
         self

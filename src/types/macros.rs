@@ -254,7 +254,7 @@ macro_rules! string {
     }};
 }
 
-macro_rules! generate_match {
+macro_rules! genmatch {
     ($x:expr, $default:expr, $( { [$( $variant:ident ),*], $val:expr } ),*) => {{
         match $x {
             $( $( Types::$variant(_) )|* => $val, )*
@@ -268,38 +268,38 @@ mod tests {
     use crate::types::types::Types;
 
     #[test]
-    fn generate_match_macro() {
+    fn genmatch_macro() {
         let value = Types::Integer(42);
         assert_eq!(
             None,
-            generate_match!(value, None, {[TinyInt, SmallInt], Some(3)})
+            genmatch!(value, None, {[TinyInt, SmallInt], Some(3)})
         );
         assert_eq!(
             Some(3),
-            generate_match!(value, None, {[TinyInt, SmallInt, Integer, BigInt], Some(3)})
+            genmatch!(value, None, {[TinyInt, SmallInt, Integer, BigInt], Some(3)})
         );
         assert_eq!(
             Some(3),
-            generate_match!(
+            genmatch!(
                 value, None,
                 {[TinyInt, Integer], Some(3)}, {[SmallInt, BigInt], Some(5)})
         );
         assert_eq!(
             Some(5),
-            generate_match!(
+            genmatch!(
                 value, None,
                 {[TinyInt, SmallInt, BigInt, Decimal], Some(3)}, {[Integer], Some(5)})
         );
         assert_eq!(
             Some(5),
-            generate_match!(
+            genmatch!(
                 value, None,
                 {[TinyInt, SmallInt, BigInt], Some(3)},
                 {[Integer, Decimal, Timestamp], Some(5)})
         );
         assert_eq!(
             Some(7),
-            generate_match!(
+            genmatch!(
                 value, None,
                 {[TinyInt], Some(3)}, {[SmallInt], Some(5)},
                 {[Integer], Some(7)}, {[BigInt], Some(9)})

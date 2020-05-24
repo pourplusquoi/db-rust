@@ -36,7 +36,7 @@ impl<'a> Value<'a> {
     }
 
     pub fn is_null(&self) -> bool {
-        self.size == PELOTON_VALUE_NULL
+        self.size == RSDB_VALUE_NULL
     }
 
     pub fn is_numeric(&self) -> bool {
@@ -198,31 +198,31 @@ impl<'a> Operation for Value<'a> {
 
     fn null(&self, other: &Self) -> Self {
         match self.content {
-            Types::TinyInt(_) => generate_match!(
+            Types::TinyInt(_) => genmatch!(
                 other.content,
                 None,
                 { [TinyInt], Some(nullas!(self)) },
                 { [SmallInt, Integer, BigInt, Decimal], Some(nullas!(other)) }
             ),
-            Types::SmallInt(_) => generate_match!(
+            Types::SmallInt(_) => genmatch!(
                 other.content,
                 None,
                 { [TinyInt, SmallInt], Some(nullas!(self)) },
                 { [Integer, BigInt, Decimal], Some(nullas!(other)) }
             ),
-            Types::Integer(_) => generate_match!(
+            Types::Integer(_) => genmatch!(
                 other.content,
                 None,
                 { [TinyInt, SmallInt, Integer], Some(nullas!(self)) },
                 { [BigInt, Decimal], Some(nullas!(other)) }
             ),
-            Types::BigInt(_) => generate_match!(
+            Types::BigInt(_) => genmatch!(
                 other.content,
                 None,
                 { [TinyInt, SmallInt, Integer, BigInt], Some(nullas!(self)) },
                 { [Decimal], Some(nullas!(other)) }
             ),
-            Types::Decimal(_) => generate_match!(
+            Types::Decimal(_) => genmatch!(
                 other.content,
                 None,
                 { [TinyInt, SmallInt, Integer, BigInt, Decimal], Some(nullas!(self)) }
@@ -348,13 +348,13 @@ fn human_readable(mut tm: u64) -> String {
 
 fn get_size<'a>(content: &Types<'a>) -> u32 {
     match content {
-        Types::Boolean(val) => compute_size(*val, PELOTON_BOOLEAN_NULL),
-        Types::TinyInt(val) => compute_size(*val, PELOTON_INT8_NULL),
-        Types::SmallInt(val) => compute_size(*val, PELOTON_INT16_NULL),
-        Types::Integer(val) => compute_size(*val, PELOTON_INT32_NULL),
-        Types::BigInt(val) => compute_size(*val, PELOTON_INT64_NULL),
-        Types::Timestamp(val) => compute_size(*val, PELOTON_TIMESTAMP_NULL),
-        Types::Decimal(val) => compute_size(*val, PELOTON_DECIMAL_NULL),
+        Types::Boolean(val) => compute_size(*val, RSDB_BOOLEAN_NULL),
+        Types::TinyInt(val) => compute_size(*val, RSDB_INT8_NULL),
+        Types::SmallInt(val) => compute_size(*val, RSDB_INT16_NULL),
+        Types::Integer(val) => compute_size(*val, RSDB_INT32_NULL),
+        Types::BigInt(val) => compute_size(*val, RSDB_INT64_NULL),
+        Types::Timestamp(val) => compute_size(*val, RSDB_TIMESTAMP_NULL),
+        Types::Decimal(val) => compute_size(*val, RSDB_DECIMAL_NULL),
         // Assuming the length of string fits in u32.
         Types::Varchar(val) => val.len() as u32,
     }
@@ -362,7 +362,7 @@ fn get_size<'a>(content: &Types<'a>) -> u32 {
 
 fn compute_size<T: PartialEq>(val: T, null: T) -> u32 {
     if val == null {
-        PELOTON_VALUE_NULL
+        RSDB_VALUE_NULL
     } else {
         0
     }

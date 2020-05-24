@@ -87,6 +87,11 @@ impl DiskManager {
     pub fn deallocate_page(&mut self, page_id: PageId) {
         self.selector.set_free(page_id as usize);
     }
+
+    // TODO: Think about whether it is needed and how to compact.
+    pub fn compact(&mut self) {
+        self.selector.compact();
+    }
 }
 
 pub fn write(file: &mut File, data: &mut [u8], size: usize) -> std::io::Result<()> {

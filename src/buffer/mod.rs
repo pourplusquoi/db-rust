@@ -1,3 +1,4 @@
 pub mod buffer_pool_manager;
-pub mod lru_replacer;
-pub mod replacer;
+
+mod lru_replacer;
+mod replacer;
