@@ -324,7 +324,7 @@ macro_rules! unsupported {
 macro_rules! primitive_from {
     ($x:ty, $y:ty) => {
         impl PrimitiveFrom<$x> for $y {
-            fn from(val: $x) -> $y {
+            fn primitive_from(val: $x) -> $y {
                 val as $y
             }
         }
@@ -334,12 +334,26 @@ macro_rules! primitive_from {
 macro_rules! parse_into {
     ($x:ty) => {
         impl ParseInto<$x> for &str {
-            fn into(self) -> Result<$x, Error> {
+            fn parse_into(self) -> Result<$x, Error> {
                 self.parse::<$x>()
                     .map_err(|_| Error::new(ErrorKind::CannotParse, "Parse failure"))
             }
         }
     };
+}
+
+macro_rules! limits {
+    ($x:ty, $min:expr, $max:expr) => {
+        impl HasLimits for $x {
+            fn min() -> Self {
+                $min
+            }
+
+            fn max() -> Self {
+                $max
+            }
+        }
+    }
 }
 
 macro_rules! genmatch {

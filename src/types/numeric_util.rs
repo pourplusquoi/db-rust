@@ -9,37 +9,47 @@ where
     T: Clone + PartialEq + PrimitiveFrom<U>,
     U: Clone + PartialEq + PrimitiveFrom<T>,
 {
-    if T::from(U::from(val.clone())) != val {
+    if T::primitive_from(U::primitive_from(val.clone())) != val {
         Err(Error::new(ErrorKind::Overflow, "Cast failure"))
     } else {
-        Ok(U::from(val))
+        Ok(U::primitive_from(val))
     }
 }
 
-pub fn force_cast<T, U>(val: T) -> U
+pub fn loss_cast<T>(val: f64) -> Result<T, Error>
 where
-    U: PrimitiveFrom<T>,
+    T: PrimitiveFrom<f64> + HasLimits,
+    f64: PrimitiveFrom<T>,
 {
-    U::from(val)
+    if val > f64::primitive_from(T::max()) || val < f64::primitive_from(T::min()) {
+        Err(Error::new(ErrorKind::Overflow, "Cast failure"))
+    } else {
+        Ok(T::primitive_from(val))
+    }
 }
 
 pub fn parse<T, U>(val: T) -> Result<U, Error>
 where
     T: ParseInto<U>,
 {
-    val.into()
+    val.parse_into()
 }
 
 pub trait PrimitiveFrom<T> {
-    fn from(val: T) -> Self;
+    fn primitive_from(val: T) -> Self;
 }
 
 pub trait ParseInto<T> {
-    fn into(self) -> Result<T, Error>;
+    fn parse_into(self) -> Result<T, Error>;
+}
+
+pub trait HasLimits {
+    fn min() -> Self;
+    fn max() -> Self;
 }
 
 impl ParseInto<bool> for &str {
-    fn into(self) -> Result<bool, Error> {
+    fn parse_into(self) -> Result<bool, Error> {
         if self == "true" || self == "1" || self == "t" {
             Ok(true)
         } else if self == "false" || self == "0" || self == "f" {
@@ -49,6 +59,13 @@ impl ParseInto<bool> for &str {
         }
     }
 }
+
+limits!(i8, std::i8::MIN, std::i8::MAX);
+limits!(i16, std::i16::MIN, std::i16::MAX);
+limits!(i32, std::i32::MIN, std::i32::MAX);
+limits!(i64, std::i64::MIN, std::i64::MAX);
+limits!(u64, std::u64::MIN, std::u64::MAX);
+limits!(f64, std::f64::MIN, std::f64::MAX);
 
 parse_into!(i8);
 parse_into!(i16);

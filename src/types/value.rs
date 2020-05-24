@@ -338,7 +338,7 @@ impl<'a> Operation for Value<'a> {
             Types::SmallInt(src) => castnum!(dst.content, src, cast, "smallint"),
             Types::Integer(src) => castnum!(dst.content, src, cast, "integer"),
             Types::BigInt(src) => castnum!(dst.content, src, cast, "bigint"),
-            Types::Decimal(src) => castnum!(dst.content, src, (|x| Ok(force_cast(x))), "decimal"),
+            Types::Decimal(src) => castnum!(dst.content, src, loss_cast, "decimal"),
             Types::Timestamp(src) => match &mut dst.content {
                 Types::Timestamp(val) => *val = src,
                 Types::Varchar(val) => *val = Varlen::Owned(Str::Val(src.to_string())),
@@ -628,7 +628,7 @@ mod tests {
         assert_eq!(123454321, intr.get_as_i64().unwrap());
 
         let strw = value!(
-            Varlen::Borrowed(Str::Val("orange is not the only fruit")),
+            Varlen::Borrowed(Str::Val("oranges are not the only fruit")),
             Varchar
         );
         let mut strr = Value::new(Types::borrowed());
@@ -636,7 +636,7 @@ mod tests {
         strr.deserialize_from(&buffer);
         match strr.content {
             Types::Varchar(Varlen::Owned(Str::Val(s))) => {
-                assert_eq!("orange is not the only fruit", s)
+                assert_eq!("oranges are not the only fruit", s)
             }
             _ => panic!("fail"),
         }
@@ -652,5 +652,37 @@ mod tests {
     }
 
     #[test]
-    fn cast_test() {}
+    fn cast_test() {
+        let integer = value!(66666, Integer);
+        let mut bigint = Value::new(Types::bigint());
+        assert!(integer.cast_to(&mut Value::new(Types::tinyint())).is_err());
+        assert!(integer.cast_to(&mut Value::new(Types::smallint())).is_err());
+        assert!(integer.cast_to(&mut bigint).is_ok());
+        assert_eq!(66666, bigint.get_as_i64().unwrap());
+
+        let decimal = value!(314.15927, Decimal);
+        let mut bigint = Value::new(Types::bigint());
+        assert!(decimal.cast_to(&mut Value::new(Types::tinyint())).is_err());
+        assert!(decimal.cast_to(&mut Value::new(Types::smallint())).is_ok());
+        assert!(decimal.cast_to(&mut bigint).is_ok());
+        assert_eq!(314, bigint.get_as_i64().unwrap());
+
+        let string1 = value!(Varlen::Borrowed(Str::Val("1234")), Varchar);
+        let mut smallint = Value::new(Types::bigint());
+        assert!(string1.cast_to(&mut smallint).is_ok());
+        assert_eq!(1234, smallint.get_as_i16().unwrap());
+
+        let string2 = value!(Varlen::Borrowed(Str::Val("12.34")), Varchar);
+        let mut tinyint = Value::new(Types::tinyint());
+        let mut decimal = Value::new(Types::decimal());
+        assert!(string2.cast_to(&mut tinyint).is_err());
+        assert!(string2.cast_to(&mut decimal).is_ok());
+        assert_eq!(12.34, decimal.get_as_f64().unwrap());
+
+        let invalid = value!(Varlen::Borrowed(Str::Val("invalid")), Varchar);
+        let mut integer = Value::new(Types::integer());
+        let mut decimal = Value::new(Types::decimal());
+        assert!(invalid.cast_to(&mut integer).is_err());
+        assert!(invalid.cast_to(&mut decimal).is_err());
+    }
 }
