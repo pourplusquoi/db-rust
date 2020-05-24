@@ -270,10 +270,7 @@ mod tests {
     #[test]
     fn genmatch_macro() {
         let value = Types::Integer(42);
-        assert_eq!(
-            None,
-            genmatch!(value, None, {[TinyInt, SmallInt], Some(3)})
-        );
+        assert_eq!(None, genmatch!(value, None, {[TinyInt, SmallInt], Some(3)}));
         assert_eq!(
             Some(3),
             genmatch!(value, None, {[TinyInt, SmallInt, Integer, BigInt], Some(3)})
