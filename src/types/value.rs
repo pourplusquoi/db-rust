@@ -604,15 +604,23 @@ mod tests {
         let dec1 = value!(1.0, Decimal);
         let dec2 = value!(16.0, Decimal);
         let dec3 = value!(-16.0, Decimal);
-        let nullint = Value::new(Types::integer().null_val().unwrap());
-        let nulldec = Value::new(Types::decimal().null_val().unwrap());
-
         assert_eq!(Some(true), int1.min(&int3).unwrap().eq(&int3));
         assert_eq!(Some(true), int2.max(&int3).unwrap().eq(&int2));
         assert_eq!(Some(true), dec1.min(&dec2).unwrap().eq(&dec1));
         assert_eq!(Some(true), dec1.max(&dec3).unwrap().eq(&dec1));
         assert_eq!(Some(true), int1.min(&dec1).unwrap().eq(&int1));
         assert_eq!(Some(true), int1.max(&dec1).unwrap().eq(&dec1));
+
+        let nullint = Value::new(Types::integer().null_val().unwrap());
+        let nulldec = Value::new(Types::decimal().null_val().unwrap());
+        assert!(nullint.min(&int1).unwrap().is_null());
+        assert!(nullint.max(&int2).unwrap().is_null());
+        assert!(int2.min(&nullint).unwrap().is_null());
+        assert!(int1.max(&nullint).unwrap().is_null());
+        assert!(nulldec.min(&dec1).unwrap().is_null());
+        assert!(nulldec.max(&dec2).unwrap().is_null());
+        assert!(dec2.min(&nulldec).unwrap().is_null());
+        assert!(dec1.max(&nulldec).unwrap().is_null());
     }
 
     #[test]
