@@ -407,23 +407,23 @@ fn human_readable(mut tm: u64) -> String {
 
 fn get_size<'a>(content: &Types<'a>) -> u32 {
     match content {
-        Types::Boolean(val) => compute_size(*val, RSDB_BOOLEAN_NULL),
-        Types::TinyInt(val) => compute_size(*val, RSDB_INT8_NULL),
-        Types::SmallInt(val) => compute_size(*val, RSDB_INT16_NULL),
-        Types::Integer(val) => compute_size(*val, RSDB_INT32_NULL),
-        Types::BigInt(val) => compute_size(*val, RSDB_INT64_NULL),
-        Types::Timestamp(val) => compute_size(*val, RSDB_TIMESTAMP_NULL),
-        Types::Decimal(val) => compute_size(*val, RSDB_DECIMAL_NULL),
+        Types::Boolean(val) => choose_size(val, &RSDB_BOOLEAN_NULL, 1),
+        Types::TinyInt(val) => choose_size(val, &RSDB_INT8_NULL, 1),
+        Types::SmallInt(val) => choose_size(val, &RSDB_INT16_NULL, 2),
+        Types::Integer(val) => choose_size(val, &RSDB_INT32_NULL, 4),
+        Types::BigInt(val) => choose_size(val, &RSDB_INT64_NULL, 8),
+        Types::Timestamp(val) => choose_size(val, &RSDB_TIMESTAMP_NULL, 8),
+        Types::Decimal(val) => choose_size(val, &RSDB_DECIMAL_NULL, 8),
         // Assuming the length of string fits in u32.
         Types::Varchar(val) => val.len() as u32,
     }
 }
 
-fn compute_size<T: PartialEq>(val: T, null: T) -> u32 {
+fn choose_size<T: PartialEq>(val: &T, null: &T, size: u32) -> u32 {
     if val == null {
         RSDB_VALUE_NULL
     } else {
-        0
+        size
     }
 }
 
