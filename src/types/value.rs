@@ -1,5 +1,3 @@
-#![allow(unused_variables)]
-
 use crate::common::reinterpret;
 use crate::logging::error_logging::ErrorLogging;
 use crate::types::error::Error;
