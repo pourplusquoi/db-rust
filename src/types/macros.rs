@@ -17,15 +17,15 @@ macro_rules! unwrapor {
 macro_rules! arithmetic_tinyint {
     ($x:ident, $y:ident, $closure:tt) => {{
         let res = match $y.content {
-            Types::TinyInt(rhs) => value!($closure($x, rhs), TinyInt),
-            Types::SmallInt(rhs) => value!($closure($x as i16, rhs), SmallInt),
-            Types::Integer(rhs) => value!($closure($x as i32, rhs), Integer),
-            Types::BigInt(rhs) => value!($closure($x as i64, rhs), BigInt),
-            Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs)?, TinyInt),
+            Types::SmallInt(rhs) => value!($closure($x as i16, rhs)?, SmallInt),
+            Types::Integer(rhs) => value!($closure($x as i32, rhs)?, Integer),
+            Types::BigInt(rhs) => value!($closure($x as i64, rhs)?, BigInt),
+            Types::Decimal(rhs) => value!($closure($x as f64, rhs)?, Decimal),
             _ => {
                 let mut rhs = Value::new(Types::tinyint());
                 $y.cast_to(&mut rhs)?;
-                value!($closure($x, rhs.get_as_i8()?), TinyInt)
+                value!($closure($x, rhs.get_as_i8()?)?, TinyInt)
             }
         };
         Ok(res)
@@ -53,15 +53,15 @@ macro_rules! compare_tinyint {
 macro_rules! arithmetic_smallint {
     ($x:ident, $y:ident, $closure:tt) => {{
         let res = match $y.content {
-            Types::TinyInt(rhs) => value!($closure($x, rhs as i16), SmallInt),
-            Types::SmallInt(rhs) => value!($closure($x, rhs), SmallInt),
-            Types::Integer(rhs) => value!($closure($x as i32, rhs), Integer),
-            Types::BigInt(rhs) => value!($closure($x as i64, rhs), BigInt),
-            Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs as i16)?, SmallInt),
+            Types::SmallInt(rhs) => value!($closure($x, rhs)?, SmallInt),
+            Types::Integer(rhs) => value!($closure($x as i32, rhs)?, Integer),
+            Types::BigInt(rhs) => value!($closure($x as i64, rhs)?, BigInt),
+            Types::Decimal(rhs) => value!($closure($x as f64, rhs)?, Decimal),
             _ => {
                 let mut rhs = Value::new(Types::smallint());
                 $y.cast_to(&mut rhs)?;
-                value!($closure($x, rhs.get_as_i16()?), SmallInt)
+                value!($closure($x, rhs.get_as_i16()?)?, SmallInt)
             }
         };
         Ok(res)
@@ -89,15 +89,15 @@ macro_rules! compare_smallint {
 macro_rules! arithmetic_integer {
     ($x:ident, $y:ident, $closure:tt) => {{
         let res = match $y.content {
-            Types::TinyInt(rhs) => value!($closure($x, rhs as i32), Integer),
-            Types::SmallInt(rhs) => value!($closure($x, rhs as i32), Integer),
-            Types::Integer(rhs) => value!($closure($x, rhs), Integer),
-            Types::BigInt(rhs) => value!($closure($x as i64, rhs), BigInt),
-            Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs as i32)?, Integer),
+            Types::SmallInt(rhs) => value!($closure($x, rhs as i32)?, Integer),
+            Types::Integer(rhs) => value!($closure($x, rhs)?, Integer),
+            Types::BigInt(rhs) => value!($closure($x as i64, rhs)?, BigInt),
+            Types::Decimal(rhs) => value!($closure($x as f64, rhs)?, Decimal),
             _ => {
                 let mut rhs = Value::new(Types::integer());
                 $y.cast_to(&mut rhs)?;
-                value!($closure($x, rhs.get_as_i32()?), Integer)
+                value!($closure($x, rhs.get_as_i32()?)?, Integer)
             }
         };
         Ok(res)
@@ -125,15 +125,15 @@ macro_rules! compare_integer {
 macro_rules! arithmetic_bigint {
     ($x:ident, $y:ident, $closure:tt) => {{
         let res = match $y.content {
-            Types::TinyInt(rhs) => value!($closure($x, rhs as i64), BigInt),
-            Types::SmallInt(rhs) => value!($closure($x, rhs as i64), BigInt),
-            Types::Integer(rhs) => value!($closure($x, rhs as i64), BigInt),
-            Types::BigInt(rhs) => value!($closure($x, rhs), BigInt),
-            Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs as i64)?, BigInt),
+            Types::SmallInt(rhs) => value!($closure($x, rhs as i64)?, BigInt),
+            Types::Integer(rhs) => value!($closure($x, rhs as i64)?, BigInt),
+            Types::BigInt(rhs) => value!($closure($x, rhs)?, BigInt),
+            Types::Decimal(rhs) => value!($closure($x as f64, rhs)?, Decimal),
             _ => {
                 let mut rhs = Value::new(Types::bigint());
                 $y.cast_to(&mut rhs)?;
-                value!($closure($x, rhs.get_as_i64()?), BigInt)
+                value!($closure($x, rhs.get_as_i64()?)?, BigInt)
             }
         };
         Ok(res)
@@ -161,15 +161,15 @@ macro_rules! compare_bigint {
 macro_rules! arithmetic_decimal {
     ($x:ident, $y:ident, $closure:tt) => {{
         let res = match $y.content {
-            Types::TinyInt(rhs) => value!($closure($x, rhs as f64), Decimal),
-            Types::SmallInt(rhs) => value!($closure($x, rhs as f64), Decimal),
-            Types::Integer(rhs) => value!($closure($x, rhs as f64), Decimal),
-            Types::BigInt(rhs) => value!($closure($x, rhs as f64), Decimal),
-            Types::Decimal(rhs) => value!($closure($x, rhs), Decimal),
+            Types::TinyInt(rhs) => value!($closure($x, rhs as f64)?, Decimal),
+            Types::SmallInt(rhs) => value!($closure($x, rhs as f64)?, Decimal),
+            Types::Integer(rhs) => value!($closure($x, rhs as f64)?, Decimal),
+            Types::BigInt(rhs) => value!($closure($x, rhs as f64)?, Decimal),
+            Types::Decimal(rhs) => value!($closure($x, rhs)?, Decimal),
             _ => {
                 let mut rhs = Value::new(Types::decimal());
                 $y.cast_to(&mut rhs)?;
-                value!($closure($x, rhs.get_as_f64()?), Decimal)
+                value!($closure($x, rhs.get_as_f64()?)?, Decimal)
             }
         };
         Ok(res)
@@ -321,20 +321,20 @@ macro_rules! unsupported {
     };
 }
 
-macro_rules! primitive_from {
+macro_rules! primitive_from_impl {
     ($x:ty, $y:ty) => {
         impl PrimitiveFrom<$x> for $y {
-            fn primitive_from(val: $x) -> $y {
-                val as $y
+            fn from(val: &$x) -> $y {
+                *val as $y
             }
         }
     };
 }
 
-macro_rules! parse_into {
+macro_rules! parse_into_impl {
     ($x:ty) => {
         impl ParseInto<$x> for &str {
-            fn parse_into(self) -> Result<$x, Error> {
+            fn into(self) -> Result<$x, Error> {
                 self.parse::<$x>()
                     .map_err(|_| Error::new(ErrorKind::CannotParse, "Parse failure"))
             }
@@ -342,15 +342,51 @@ macro_rules! parse_into {
     };
 }
 
-macro_rules! limits {
+macro_rules! limits_impl {
     ($x:ty, $min:expr, $max:expr) => {
         impl HasLimits for $x {
             fn min() -> Self {
                 $min
             }
-
             fn max() -> Self {
                 $max
+            }
+        }
+    };
+}
+
+macro_rules! arithmetic_impl {
+    ($x:ty) => {
+        impl Arithmetic for $x {
+            fn add(&self, other: &Self) -> Self {
+                *self + *other
+            }
+            fn subtract(&self, other: &Self) -> Self {
+                *self - *other
+            }
+            fn multiply(&self, other: &Self) -> Self {
+                *self * *other
+            }
+            fn divide(&self, other: &Self) -> Self {
+                *self / *other
+            }
+            fn modulo(&self, other: &Self) -> Self {
+                *self % *other
+            }
+            fn lt(&self, other: &Self) -> bool {
+                *self < *other
+            }
+            fn gt(&self, other: &Self) -> bool {
+                *self > *other
+            }
+            fn eq(&self, other: &Self) -> bool {
+                *self == *other
+            }
+            fn ne(&self, other: &Self) -> bool {
+                *self != *other
+            }
+            fn zero() -> Self {
+                0 as $x
             }
         }
     };

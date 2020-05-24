@@ -120,37 +120,23 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn add(&self, other: &Self) -> Result<Self, Error> {
-        arithmetic!(self, other, (|x, y| x + y))
+        arithmetic!(self, other, (|x, y| add(x, y)))
     }
 
     fn subtract(&self, other: &Self) -> Result<Self, Error> {
-        arithmetic!(self, other, (|x, y| x - y))
+        arithmetic!(self, other, (|x, y| subtract(x, y)))
     }
 
     fn multiply(&self, other: &Self) -> Result<Self, Error> {
-        arithmetic!(self, other, (|x, y| x * y))
+        arithmetic!(self, other, (|x, y| multiply(x, y)))
     }
 
     fn divide(&self, other: &Self) -> Result<Self, Error> {
-        if other.is_zero()? {
-            Err(Error::new(ErrorKind::DivideByZero, "Cannot divide by zero"))
-        } else {
-            arithmetic!(self, other, (|x, y| x / y))
-        }
+        arithmetic!(self, other, (|x, y| divide(x, y)))
     }
 
     fn modulo(&self, other: &Self) -> Result<Self, Error> {
-        if other.is_zero()? {
-            Err(Error::new(ErrorKind::DivideByZero, "Cannot modulo by zero"))
-        } else {
-            let res = match self.content {
-                Types::Decimal(val) => {
-                    arithmetic_decimal!(val, other, (|x: f64, y: f64| x - (x / y).trunc() * y))?
-                }
-                _ => arithmetic!(self, other, (|x, y| x % y))?,
-            };
-            Ok(res)
-        }
+        arithmetic!(self, other, (|x, y| modulo(x, y)))
     }
 
     fn sqrt(&self) -> Result<Self, Error> {
