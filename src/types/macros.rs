@@ -4,9 +4,19 @@ macro_rules! value {
     };
 }
 
+// Assign or return.
+macro_rules! aor {
+    ($x:expr) => {
+        match $x {
+            Ok(r) => r,
+            Err(e) => return Err(e).log_and().ok(),
+        }
+    }
+}
+
 macro_rules! arithmetic_tinyint {
     ($x:ident, $y:ident, $closure:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => value!($closure($x, rhs), TinyInt),
             Types::SmallInt(rhs) => value!($closure($x as i16, rhs), SmallInt),
             Types::Integer(rhs) => value!($closure($x as i32, rhs), Integer),
@@ -15,15 +25,16 @@ macro_rules! arithmetic_tinyint {
             _ => {
                 let mut rhs = Value::new(Types::tinyint());
                 $y.cast_to(&mut rhs);
-                value!($closure($x, rhs.get_as_i8()), TinyInt)
+                value!($closure($x, rhs.get_as_i8()?), TinyInt)
             }
-        }
+        };
+        Ok(res)
     }};
 }
 
 macro_rules! compare_tinyint {
     ($x:ident, $y:ident, $closure1:tt, $closure2:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => $closure1($x, rhs),
             Types::SmallInt(rhs) => $closure1($x as i16, rhs),
             Types::Integer(rhs) => $closure1($x as i32, rhs),
@@ -32,15 +43,16 @@ macro_rules! compare_tinyint {
             _ => {
                 let mut rhs = Value::new(Types::tinyint());
                 $y.cast_to(&mut rhs);
-                $closure1($x, rhs.get_as_i8())
+                $closure1($x, aor!(rhs.get_as_i8()))
             }
-        }
+        };
+        Ok(res) as Result<_, Error>
     }};
 }
 
 macro_rules! arithmetic_smallint {
     ($x:ident, $y:ident, $closure:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => value!($closure($x, rhs as i16), SmallInt),
             Types::SmallInt(rhs) => value!($closure($x, rhs), SmallInt),
             Types::Integer(rhs) => value!($closure($x as i32, rhs), Integer),
@@ -49,15 +61,16 @@ macro_rules! arithmetic_smallint {
             _ => {
                 let mut rhs = Value::new(Types::smallint());
                 $y.cast_to(&mut rhs);
-                value!($closure($x, rhs.get_as_i16()), SmallInt)
+                value!($closure($x, rhs.get_as_i16()?), SmallInt)
             }
-        }
+        };
+        Ok(res)
     }};
 }
 
 macro_rules! compare_smallint {
     ($x:ident, $y:ident, $closure1:tt, $closure2:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => $closure1($x, rhs as i16),
             Types::SmallInt(rhs) => $closure1($x, rhs),
             Types::Integer(rhs) => $closure1($x as i32, rhs),
@@ -66,15 +79,16 @@ macro_rules! compare_smallint {
             _ => {
                 let mut rhs = Value::new(Types::smallint());
                 $y.cast_to(&mut rhs);
-                $closure1($x, rhs.get_as_i16())
+                $closure1($x, aor!(rhs.get_as_i16()))
             }
-        }
+        };
+        Ok(res) as Result<_, Error>
     }};
 }
 
 macro_rules! arithmetic_integer {
     ($x:ident, $y:ident, $closure:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => value!($closure($x, rhs as i32), Integer),
             Types::SmallInt(rhs) => value!($closure($x, rhs as i32), Integer),
             Types::Integer(rhs) => value!($closure($x, rhs), Integer),
@@ -83,15 +97,16 @@ macro_rules! arithmetic_integer {
             _ => {
                 let mut rhs = Value::new(Types::integer());
                 $y.cast_to(&mut rhs);
-                value!($closure($x, rhs.get_as_i32()), Integer)
+                value!($closure($x, rhs.get_as_i32()?), Integer)
             }
-        }
+        };
+        Ok(res)
     }};
 }
 
 macro_rules! compare_integer {
     ($x:ident, $y:ident, $closure1:tt, $closure2:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => $closure1($x, rhs as i32),
             Types::SmallInt(rhs) => $closure1($x, rhs as i32),
             Types::Integer(rhs) => $closure1($x, rhs),
@@ -100,15 +115,16 @@ macro_rules! compare_integer {
             _ => {
                 let mut rhs = Value::new(Types::integer());
                 $y.cast_to(&mut rhs);
-                $closure1($x, rhs.get_as_i32())
+                $closure1($x, aor!(rhs.get_as_i32()))
             }
-        }
+        };
+        Ok(res) as Result<_, Error>
     }};
 }
 
 macro_rules! arithmetic_bigint {
     ($x:ident, $y:ident, $closure:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => value!($closure($x, rhs as i64), BigInt),
             Types::SmallInt(rhs) => value!($closure($x, rhs as i64), BigInt),
             Types::Integer(rhs) => value!($closure($x, rhs as i64), BigInt),
@@ -117,15 +133,16 @@ macro_rules! arithmetic_bigint {
             _ => {
                 let mut rhs = Value::new(Types::bigint());
                 $y.cast_to(&mut rhs);
-                value!($closure($x, rhs.get_as_i64()), BigInt)
+                value!($closure($x, rhs.get_as_i64()?), BigInt)
             }
-        }
+        };
+        Ok(res)
     }};
 }
 
 macro_rules! compare_bigint {
     ($x:ident, $y:ident, $closure1:tt, $closure2:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => $closure1($x, rhs as i64),
             Types::SmallInt(rhs) => $closure1($x, rhs as i64),
             Types::Integer(rhs) => $closure1($x, rhs as i64),
@@ -134,15 +151,16 @@ macro_rules! compare_bigint {
             _ => {
                 let mut rhs = Value::new(Types::bigint());
                 $y.cast_to(&mut rhs);
-                $closure1($x, rhs.get_as_i64())
+                $closure1($x, aor!(rhs.get_as_i64()))
             }
-        }
+        };
+        Ok(res) as Result<_, Error>
     }};
 }
 
 macro_rules! arithmetic_decimal {
     ($x:ident, $y:ident, $closure:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => value!($closure($x, rhs as f64), Decimal),
             Types::SmallInt(rhs) => value!($closure($x, rhs as f64), Decimal),
             Types::Integer(rhs) => value!($closure($x, rhs as f64), Decimal),
@@ -151,15 +169,16 @@ macro_rules! arithmetic_decimal {
             _ => {
                 let mut rhs = Value::new(Types::decimal());
                 $y.cast_to(&mut rhs);
-                value!($closure($x, rhs.get_as_f64()), Decimal)
+                value!($closure($x, rhs.get_as_f64()?), Decimal)
             }
-        }
+        };
+        Ok(res)
     }};
 }
 
 macro_rules! compare_decimal {
     ($x:ident, $y:ident, $closure:tt) => {{
-        match $y.content {
+        let res = match $y.content {
             Types::TinyInt(rhs) => $closure($x - rhs as f64),
             Types::SmallInt(rhs) => $closure($x - rhs as f64),
             Types::Integer(rhs) => $closure($x - rhs as f64),
@@ -168,9 +187,24 @@ macro_rules! compare_decimal {
             _ => {
                 let mut rhs = Value::new(Types::decimal());
                 $y.cast_to(&mut rhs);
-                $closure($x - rhs.get_as_f64())
+                $closure($x - aor!(rhs.get_as_f64()))
             }
-        }
+        };
+        Ok(res) as Result<_, Error>
+    }};
+}
+
+macro_rules! compare_bool {
+    ($x:ident, $y:ident, $closure:tt) => {{
+        let mut rhs = Value::new(Types::boolean());
+        $y.cast_to(&mut rhs);
+        Ok($closure($x, aor!(rhs.get_as_bool()))) as Result<_, Error>
+    }};
+}
+
+macro_rules! compare_timestamp {
+    ($x:ident, $y:ident, $closure:tt) => {{
+        Ok($closure($x, aor!($y.get_as_u64()))) as Result<_, Error>
     }};
 }
 
@@ -197,17 +231,13 @@ macro_rules! compare {
             None
         } else {
             match $x.content {
-                Types::Boolean(lhs) => Some({
-                    let mut rhs = Value::new(Types::boolean());
-                    $y.cast_to(&mut rhs);
-                    $closure1(lhs, rhs.get_as_bool())
-                }),
-                Types::TinyInt(lhs) => Some(compare_tinyint!(lhs, $y, $closure1, $closure2)),
-                Types::SmallInt(lhs) => Some(compare_smallint!(lhs, $y, $closure1, $closure2)),
-                Types::Integer(lhs) => Some(compare_integer!(lhs, $y, $closure1, $closure2)),
-                Types::BigInt(lhs) => Some(compare_bigint!(lhs, $y, $closure1, $closure2)),
-                Types::Timestamp(lhs) => Some($closure1(lhs, $y.get_as_u64())),
-                Types::Decimal(lhs) => Some(compare_decimal!(lhs, $y, $closure2)),
+                Types::Boolean(lhs) => compare_bool!(lhs, $y, $closure1).log_and().ok(),
+                Types::TinyInt(lhs) => compare_tinyint!(lhs, $y, $closure1, $closure2).log_and().ok(),
+                Types::SmallInt(lhs) => compare_smallint!(lhs, $y, $closure1, $closure2).log_and().ok(),
+                Types::Integer(lhs) => compare_integer!(lhs, $y, $closure1, $closure2).log_and().ok(),
+                Types::BigInt(lhs) => compare_bigint!(lhs, $y, $closure1, $closure2).log_and().ok(),
+                Types::Timestamp(lhs) => compare_timestamp!(lhs, $y, $closure1).log_and().ok(),
+                Types::Decimal(lhs) => compare_decimal!(lhs, $y, $closure2).log_and().ok(),
                 Types::Varchar(ref lhs) => compare_varchar!(lhs, $y, $closure1).log_and().ok(),
             }
         }
@@ -222,11 +252,11 @@ macro_rules! arithmetic {
             $x.null($y)
         } else {
             match $x.content {
-                Types::TinyInt(lhs) => Ok(arithmetic_tinyint!(lhs, $y, $closure)),
-                Types::SmallInt(lhs) => Ok(arithmetic_smallint!(lhs, $y, $closure)),
-                Types::Integer(lhs) => Ok(arithmetic_integer!(lhs, $y, $closure)),
-                Types::BigInt(lhs) => Ok(arithmetic_bigint!(lhs, $y, $closure)),
-                Types::Decimal(lhs) => Ok(arithmetic_decimal!(lhs, $y, $closure)),
+                Types::TinyInt(lhs) => arithmetic_tinyint!(lhs, $y, $closure),
+                Types::SmallInt(lhs) => arithmetic_smallint!(lhs, $y, $closure),
+                Types::Integer(lhs) => arithmetic_integer!(lhs, $y, $closure),
+                Types::BigInt(lhs) => arithmetic_bigint!(lhs, $y, $closure),
+                Types::Decimal(lhs) => arithmetic_decimal!(lhs, $y, $closure),
                 _ => Err(Error::new(
                     ErrorKind::NotSupported,
                     "Invalid type for `arithmetic`",

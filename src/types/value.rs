@@ -85,13 +85,13 @@ impl<'a> Value<'a> {
         }
     }
 
-    forward!(content, get_as_bool, i8);
-    forward!(content, get_as_i8, i8);
-    forward!(content, get_as_i16, i16);
-    forward!(content, get_as_i32, i32);
-    forward!(content, get_as_i64, i64);
-    forward!(content, get_as_u64, u64);
-    forward!(content, get_as_f64, f64);
+    forward!(content, get_as_bool, Result<i8, Error>);
+    forward!(content, get_as_i8, Result<i8, Error>);
+    forward!(content, get_as_i16, Result<i16, Error>);
+    forward!(content, get_as_i32, Result<i32, Error>);
+    forward!(content, get_as_i64, Result<i64, Error>);
+    forward!(content, get_as_u64, Result<u64, Error>);
+    forward!(content, get_as_f64, Result<f64, Error>);
 }
 
 impl<'a> Operation for Value<'a> {
@@ -143,14 +143,15 @@ impl<'a> Operation for Value<'a> {
         if other.is_zero() {
             Err(Error::new(ErrorKind::DivideByZero, "Cannot modulo by zero"))
         } else {
-            match self.content {
-                Types::Decimal(val) => Ok(arithmetic_decimal!(
+            let res = match self.content {
+                Types::Decimal(val) => arithmetic_decimal!(
                     val,
                     other,
                     (|x: f64, y: f64| x - (x / y).trunc() * y)
-                )),
-                _ => arithmetic!(self, other, (|x, y| x % y)),
-            }
+                )?,
+                _ => arithmetic!(self, other, (|x, y| x % y))?,
+            };
+            Ok(res)
         }
     }
 
@@ -308,10 +309,11 @@ fn assert_comparable(lhs: &Value, rhs: &Value) {
 }
 
 fn varlen_value_cmp(lhs: &Varlen, rhs: &Value) -> Result<i8, Error> {
-    Ok(match rhs.content {
+    let res = match rhs.content {
         Types::Varchar(ref varlen) => varlen_cmp(lhs, varlen),
         _ => varlen_cmp(lhs, &rhs.content.to_varlen()?),
-    })
+    };
+    Ok(res)
 }
 
 fn human_readable(mut tm: u64) -> String {

@@ -253,59 +253,66 @@ impl<'a> Types<'a> {
         Ok(varlen)
     }
 
-    pub fn get_as_bool(&self) -> i8 {
-        match self {
+    pub fn get_as_bool(&self) -> Result<i8, Error> {
+        let res = match self {
             Self::Boolean(val) => *val as i8,
-            _ => panic!("Type error for get_as_bool"),
-        }
+            _ => Err(unsupported!("Invalid type for `get_as_bool`"))?,
+        };
+        Ok(res)
     }
 
-    pub fn get_as_i8(&self) -> i8 {
-        match self {
+    pub fn get_as_i8(&self) -> Result<i8, Error> {
+        let res = match self {
             Self::TinyInt(val) => *val as i8,
-            _ => panic!("Type error for get_as_i8"),
-        }
+            _ => Err(unsupported!("Invalid type for `get_as_i8`"))?,
+        };
+        Ok(res)
     }
 
-    pub fn get_as_i16(&self) -> i16 {
-        match self {
+    pub fn get_as_i16(&self) -> Result<i16, Error> {
+        let res = match self {
             Self::TinyInt(val) => *val as i16,
             Self::SmallInt(val) => *val as i16,
-            _ => panic!("Type error for get_as_i16"),
-        }
+            _ => Err(unsupported!("Invalid type for `get_as_i16`"))?,
+        };
+        Ok(res)
     }
 
-    pub fn get_as_i32(&self) -> i32 {
-        match self {
+    pub fn get_as_i32(&self) -> Result<i32, Error> {
+        let res = match self {
             Self::TinyInt(val) => *val as i32,
             Self::SmallInt(val) => *val as i32,
             Self::Integer(val) => *val as i32,
-            _ => panic!("Type error for get_as_i32"),
-        }
+            _ => Err(unsupported!("Invalid type for `get_as_i32`"))?,
+        };
+        Ok(res)
     }
 
-    pub fn get_as_i64(&self) -> i64 {
-        match self {
+    pub fn get_as_i64(&self) -> Result<i64, Error> {
+        let res = match self {
             Self::TinyInt(val) => *val as i64,
             Self::SmallInt(val) => *val as i64,
             Self::Integer(val) => *val as i64,
             Self::BigInt(val) => *val as i64,
-            _ => panic!("Type error for get_as_i64"),
-        }
+            _ => Err(unsupported!("Invalid type for `get_as_i64`"))?,
+        };
+        Ok(res)
     }
 
-    pub fn get_as_u64(&self) -> u64 {
-        match self {
+    pub fn get_as_u64(&self) -> Result<u64, Error> {
+        let res = match self {
             Self::Timestamp(val) => *val as u64,
-            _ => panic!("Type error for get_as_u64"),
-        }
+            _ => Err(unsupported!("Invalid type for `get_as_u64`"))?,
+        };
+        Ok(res)
     }
 
-    pub fn get_as_f64(&self) -> f64 {
-        match self {
+    pub fn get_as_f64(&self) -> Result<f64, Error> {
+        let res = match self {
             Self::Decimal(val) => *val as f64,
-            _ => panic!("Type error for get_as_f64"),
-        }
+            _ => Err(unsupported!("Invalid type for `get_as_f64`"))?,
+        };
+        Ok(res)
     }
 }
 
