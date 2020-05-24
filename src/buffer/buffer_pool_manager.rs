@@ -281,8 +281,8 @@ enum Either<T> {
 impl<T> Either<T> {
     pub fn borrow(&self) -> &T {
         match self {
-            &Self::FromFreeList(ref v) => v,
-            &Self::FromReplacer(ref v) => v,
+            Self::FromFreeList(v) => v,
+            Self::FromReplacer(v) => v,
         }
     }
 }
