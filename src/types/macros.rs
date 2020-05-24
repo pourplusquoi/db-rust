@@ -219,12 +219,15 @@ macro_rules! arithmetic {
             $x.null($y)
         } else {
             match $x.content {
-                Types::TinyInt(lhs) => arithmetic_tinyint!(lhs, $y, $closure),
-                Types::SmallInt(lhs) => arithmetic_smallint!(lhs, $y, $closure),
-                Types::Integer(lhs) => arithmetic_integer!(lhs, $y, $closure),
-                Types::BigInt(lhs) => arithmetic_bigint!(lhs, $y, $closure),
-                Types::Decimal(lhs) => arithmetic_decimal!(lhs, $y, $closure),
-                _ => panic!("Type error for arithmetic"),
+                Types::TinyInt(lhs) => Ok(arithmetic_tinyint!(lhs, $y, $closure)),
+                Types::SmallInt(lhs) => Ok(arithmetic_smallint!(lhs, $y, $closure)),
+                Types::Integer(lhs) => Ok(arithmetic_integer!(lhs, $y, $closure)),
+                Types::BigInt(lhs) => Ok(arithmetic_bigint!(lhs, $y, $closure)),
+                Types::Decimal(lhs) => Ok(arithmetic_decimal!(lhs, $y, $closure)),
+                _ => Err(Error::new(
+                    ErrorKind::NotSupported,
+                    "Invalid type for `arithmetic`",
+                )),
             }
         }
     }};
@@ -240,7 +243,7 @@ macro_rules! forward {
 
 macro_rules! nullas {
     ($x:ident) => {{
-        Value::new($x.content.clone().null_val())
+        Ok(Value::new($x.content.clone().null_val()?))
     }};
 }
 

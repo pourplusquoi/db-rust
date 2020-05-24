@@ -1,13 +1,15 @@
 #![allow(unused_variables)]
 
+use crate::types::error::Error;
+use crate::types::error::ErrorKind;
 use crate::types::limits::*;
 use crate::types::types::Operation;
 use crate::types::types::Str;
 use crate::types::types::Types;
 use crate::types::types::Varlen;
 use crate::types::varlen_util::*;
-use log::error;
 use std::cmp::PartialEq;
+use std::result::Result;
 
 #[derive(Clone)]
 pub struct Value<'a> {
@@ -116,120 +118,119 @@ impl<'a> Operation for Value<'a> {
         compare!(self, other, (|x, y| x >= y), (|x| x >= 0.0))
     }
 
-    fn add(&self, other: &Self) -> Self {
+    fn add(&self, other: &Self) -> Result<Self, Error> {
         arithmetic!(self, other, (|x, y| x + y))
     }
 
-    fn subtract(&self, other: &Self) -> Self {
+    fn subtract(&self, other: &Self) -> Result<Self, Error> {
         arithmetic!(self, other, (|x, y| x - y))
     }
 
-    fn multiply(&self, other: &Self) -> Self {
+    fn multiply(&self, other: &Self) -> Result<Self, Error> {
         arithmetic!(self, other, (|x, y| x * y))
     }
 
-    fn divide(&self, other: &Self) -> Option<Self> {
+    fn divide(&self, other: &Self) -> Result<Self, Error> {
         if other.is_zero() {
-            error!("[divide] Divide by zero error");
-            return None;
-        }
-        Some(arithmetic!(self, other, (|x, y| x / y)))
-    }
-
-    fn modulo(&self, other: &Self) -> Option<Self> {
-        if other.is_zero() {
-            error!("[modulo] Divide by zero error");
-            return None;
-        }
-        match self.content {
-            Types::Decimal(val) => Some(arithmetic_decimal!(
-                val,
-                other,
-                (|x: f64, y: f64| x - (x / y).trunc() * y)
-            )),
-            _ => Some(arithmetic!(self, other, (|x, y| x % y))),
+            Err(Error::new(ErrorKind::DivideByZero, "Cannot divide by zero"))
+        } else {
+            arithmetic!(self, other, (|x, y| x / y))
         }
     }
 
-    fn sqrt(&self) -> Option<Self> {
+    fn modulo(&self, other: &Self) -> Result<Self, Error> {
+        if other.is_zero() {
+            Err(Error::new(ErrorKind::DivideByZero, "Cannot modulo by zero"))
+        } else {
+            match self.content {
+                Types::Decimal(val) => Ok(arithmetic_decimal!(
+                    val,
+                    other,
+                    (|x: f64, y: f64| x - (x / y).trunc() * y)
+                )),
+                _ => arithmetic!(self, other, (|x, y| x % y)),
+            }
+        }
+    }
+
+    fn sqrt(&self) -> Result<Self, Error> {
         assert_numeric(self);
         if self.is_null() {
-            let null = Types::decimal().null_val();
-            return Some(Value::new(null));
+            let null = Types::decimal().null_val()?;
+            return Ok(Value::new(null));
         }
         let val = match self.content {
-            Types::TinyInt(val) => val as f64,
-            Types::SmallInt(val) => val as f64,
-            Types::Integer(val) => val as f64,
-            Types::BigInt(val) => val as f64,
-            Types::Decimal(val) => val as f64,
-            _ => panic!("Type error in sqrt"),
-        };
+            Types::TinyInt(val) => Ok(val as f64),
+            Types::SmallInt(val) => Ok(val as f64),
+            Types::Integer(val) => Ok(val as f64),
+            Types::BigInt(val) => Ok(val as f64),
+            Types::Decimal(val) => Ok(val as f64),
+            _ => Err(unsupported("Invalid type for `sqrt`")),
+        }?;
         if val < 0.0 {
-            None
+            Err(unsupported("Cannot take `sqrt` on negative value"))
         } else {
-            Some(value!(val.sqrt(), Decimal))
+            Ok(value!(val.sqrt(), Decimal))
         }
     }
 
-    fn min(&self, other: &Self) -> Self {
+    fn min(&self, other: &Self) -> Result<Self, Error> {
         assert_comparable(self, other);
         if self.is_null() || other.is_null() {
             return self.null(other);
         }
         if self.le(other) == Some(true) {
-            self.clone()
+            Ok(self.clone())
         } else {
-            other.clone()
+            Ok(other.clone())
         }
     }
 
-    fn max(&self, other: &Self) -> Self {
+    fn max(&self, other: &Self) -> Result<Self, Error> {
         assert_comparable(self, other);
         if self.is_null() || other.is_null() {
             return self.null(other);
         }
         if self.ge(other) == Some(true) {
-            self.clone()
+            Ok(self.clone())
         } else {
-            other.clone()
+            Ok(other.clone())
         }
     }
 
-    fn null(&self, other: &Self) -> Self {
+    fn null(&self, other: &Self) -> Result<Self, Error> {
         match self.content {
             Types::TinyInt(_) => genmatch!(
                 other.content,
-                None,
-                { [TinyInt], Some(nullas!(self)) },
-                { [SmallInt, Integer, BigInt, Decimal], Some(nullas!(other)) }
+                Err(unsupported("Invalid type for `null` on TinyInt")),
+                { [TinyInt], nullas!(self) },
+                { [SmallInt, Integer, BigInt, Decimal], nullas!(other) }
             ),
             Types::SmallInt(_) => genmatch!(
                 other.content,
-                None,
-                { [TinyInt, SmallInt], Some(nullas!(self)) },
-                { [Integer, BigInt, Decimal], Some(nullas!(other)) }
+                Err(unsupported("Invalid type for `null` on SmallInt")),
+                { [TinyInt, SmallInt], nullas!(self) },
+                { [Integer, BigInt, Decimal], nullas!(other) }
             ),
             Types::Integer(_) => genmatch!(
                 other.content,
-                None,
-                { [TinyInt, SmallInt, Integer], Some(nullas!(self)) },
-                { [BigInt, Decimal], Some(nullas!(other)) }
+                Err(unsupported("Invalid type for `null` on Integer")),
+                { [TinyInt, SmallInt, Integer], nullas!(self) },
+                { [BigInt, Decimal], nullas!(other) }
             ),
             Types::BigInt(_) => genmatch!(
                 other.content,
-                None,
-                { [TinyInt, SmallInt, Integer, BigInt], Some(nullas!(self)) },
-                { [Decimal], Some(nullas!(other)) }
+                Err(unsupported("Invalid type for `null` on BigInt")),
+                { [TinyInt, SmallInt, Integer, BigInt], nullas!(self) },
+                { [Decimal], nullas!(other) }
             ),
             Types::Decimal(_) => genmatch!(
                 other.content,
-                None,
-                { [TinyInt, SmallInt, Integer, BigInt, Decimal], Some(nullas!(self)) }
+                Err(unsupported("Invalid type for `null` on Decimal")),
+                { [TinyInt, SmallInt, Integer, BigInt, Decimal], nullas!(self) }
             ),
-            _ => None,
+            _ => Err(unsupported("Invalid type for `null`")),
         }
-        .expect("Type error for null")
     }
 
     fn is_zero(&self) -> bool {
@@ -368,6 +369,10 @@ fn compute_size<T: PartialEq>(val: T, null: T) -> u32 {
     }
 }
 
+fn unsupported(message: &str) -> Error {
+    Error::new(ErrorKind::NotSupported, message)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -416,15 +421,33 @@ mod tests {
         let dec1 = Value::new(Types::Decimal(10.0));
         let dec2 = Value::new(Types::Decimal(0.0));
 
-        assert_eq!(Some(true), int1.add(&int1).eq(&value!(4, TinyInt)));
-        assert_eq!(Some(true), int1.add(&int2).eq(&value!(5, SmallInt)));
+        assert_eq!(Some(true), int1.add(&int1).unwrap().eq(&value!(4, TinyInt)));
+        assert_eq!(
+            Some(true),
+            int1.add(&int2).unwrap().eq(&value!(5, SmallInt))
+        );
 
-        assert_eq!(Some(true), int2.subtract(&int3).eq(&value!(-2, Integer)));
-        assert_eq!(Some(true), dec1.subtract(&int3).eq(&value!(5.0, Decimal)));
+        assert_eq!(
+            Some(true),
+            int2.subtract(&int3).unwrap().eq(&value!(-2, Integer))
+        );
+        assert_eq!(
+            Some(true),
+            dec1.subtract(&int3).unwrap().eq(&value!(5.0, Decimal))
+        );
 
-        assert_eq!(Some(true), int3.multiply(&int4).eq(&value!(35, BigInt)));
-        assert_eq!(Some(true), dec1.multiply(&int4).eq(&value!(70.0, Decimal)));
-        assert_eq!(Some(true), int3.multiply(&dec1).eq(&value!(50.0, Decimal)));
+        assert_eq!(
+            Some(true),
+            int3.multiply(&int4).unwrap().eq(&value!(35, BigInt))
+        );
+        assert_eq!(
+            Some(true),
+            dec1.multiply(&int4).unwrap().eq(&value!(70.0, Decimal))
+        );
+        assert_eq!(
+            Some(true),
+            int3.multiply(&dec1).unwrap().eq(&value!(50.0, Decimal))
+        );
 
         assert_eq!(
             Some(true),
@@ -460,10 +483,10 @@ mod tests {
             dec1.modulo(&int1).unwrap().eq(&value!(0.0, Decimal))
         );
 
-        assert!(int4.divide(&int5).is_none());
-        assert!(int4.divide(&dec2).is_none());
-        assert!(int2.modulo(&int5).is_none());
-        assert!(int2.modulo(&dec2).is_none());
+        assert!(int4.divide(&int5).is_err());
+        assert!(int4.divide(&dec2).is_err());
+        assert!(int2.modulo(&int5).is_err());
+        assert!(int2.modulo(&dec2).is_err());
     }
 
     #[test]
@@ -477,17 +500,17 @@ mod tests {
 
         assert_eq!(Some(true), int1.sqrt().unwrap().eq(&value!(0.0, Decimal)));
         assert_eq!(Some(true), int2.sqrt().unwrap().eq(&value!(3.0, Decimal)));
-        assert!(int3.sqrt().is_none());
+        assert!(int3.sqrt().is_err());
 
         assert_eq!(Some(true), dec1.sqrt().unwrap().eq(&value!(0.0, Decimal)));
         assert_eq!(Some(true), dec2.sqrt().unwrap().eq(&value!(4.0, Decimal)));
-        assert!(dec3.sqrt().is_none());
+        assert!(dec3.sqrt().is_err());
     }
 
     #[test]
     fn null_and_checks() {
-        let nullint = Value::new(Types::integer().null_val());
-        let nulldec = Value::new(Types::decimal().null_val());
+        let nullint = Value::new(Types::integer().null_val().unwrap());
+        let nulldec = Value::new(Types::decimal().null_val().unwrap());
         assert!(nullint.is_integer());
         assert!(!nulldec.is_integer());
         assert!(nullint.is_numeric());
@@ -501,8 +524,8 @@ mod tests {
 
         let num1 = value!(0, Integer);
         let num2 = value!(0, BigInt);
-        assert!(num1.null(&num2).is_null());
-        assert!(num2.null(&num1).is_null());
+        assert!(num1.null(&num2).unwrap().is_null());
+        assert!(num2.null(&num1).unwrap().is_null());
     }
 
     #[test]
@@ -513,15 +536,15 @@ mod tests {
         let dec1 = value!(1.0, Decimal);
         let dec2 = value!(16.0, Decimal);
         let dec3 = value!(-16.0, Decimal);
-        let nullint = Value::new(Types::integer().null_val());
-        let nulldec = Value::new(Types::decimal().null_val());
+        let nullint = Value::new(Types::integer().null_val().unwrap());
+        let nulldec = Value::new(Types::decimal().null_val().unwrap());
 
-        assert_eq!(Some(true), int1.min(&int3).eq(&int3));
-        assert_eq!(Some(true), int2.max(&int3).eq(&int2));
-        assert_eq!(Some(true), dec1.min(&dec2).eq(&dec1));
-        assert_eq!(Some(true), dec1.max(&dec3).eq(&dec1));
-        assert_eq!(Some(true), int1.min(&dec1).eq(&int1));
-        assert_eq!(Some(true), int1.max(&dec1).eq(&dec1));
+        assert_eq!(Some(true), int1.min(&int3).unwrap().eq(&int3));
+        assert_eq!(Some(true), int2.max(&int3).unwrap().eq(&int2));
+        assert_eq!(Some(true), dec1.min(&dec2).unwrap().eq(&dec1));
+        assert_eq!(Some(true), dec1.max(&dec3).unwrap().eq(&dec1));
+        assert_eq!(Some(true), int1.min(&dec1).unwrap().eq(&int1));
+        assert_eq!(Some(true), int1.max(&dec1).unwrap().eq(&dec1));
     }
 
     #[test]

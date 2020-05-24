@@ -1,5 +1,8 @@
+use crate::types::error::Error;
+use crate::types::error::ErrorKind;
 use crate::types::limits::*;
 use std::clone::Clone;
+use std::result::Result;
 
 #[derive(Clone)]
 pub enum Types<'a> {
@@ -219,18 +222,21 @@ impl<'a> Types<'a> {
         self
     }
 
-    pub fn null_val(mut self) -> Self {
+    pub fn null_val(mut self) -> Result<Self, Error> {
         match &mut self {
-            Self::Boolean(val) => *val = RSDB_BOOLEAN_NULL,
-            Self::TinyInt(val) => *val = RSDB_INT8_NULL,
-            Self::SmallInt(val) => *val = RSDB_INT16_NULL,
-            Self::Integer(val) => *val = RSDB_INT32_NULL,
-            Self::BigInt(val) => *val = RSDB_INT64_NULL,
-            Self::Decimal(val) => *val = RSDB_DECIMAL_NULL,
-            Self::Timestamp(val) => *val = RSDB_TIMESTAMP_NULL,
-            _ => panic!("Type error for null_val"),
-        }
-        self
+            Self::Boolean(val) => Ok(*val = RSDB_BOOLEAN_NULL),
+            Self::TinyInt(val) => Ok(*val = RSDB_INT8_NULL),
+            Self::SmallInt(val) => Ok(*val = RSDB_INT16_NULL),
+            Self::Integer(val) => Ok(*val = RSDB_INT32_NULL),
+            Self::BigInt(val) => Ok(*val = RSDB_INT64_NULL),
+            Self::Decimal(val) => Ok(*val = RSDB_DECIMAL_NULL),
+            Self::Timestamp(val) => Ok(*val = RSDB_TIMESTAMP_NULL),
+            _ => Err(Error::new(
+                ErrorKind::NotSupported,
+                "Invalid type for `null_val`",
+            )),
+        }?;
+        Ok(self)
     }
 
     pub fn to_varlen(&self) -> Varlen {
@@ -309,15 +315,15 @@ pub trait Operation: Sized {
     fn le(&self, other: &Self) -> Option<bool>;
     fn gt(&self, other: &Self) -> Option<bool>;
     fn ge(&self, other: &Self) -> Option<bool>;
-    fn add(&self, other: &Self) -> Self;
-    fn subtract(&self, other: &Self) -> Self;
-    fn multiply(&self, other: &Self) -> Self;
-    fn divide(&self, other: &Self) -> Option<Self>;
-    fn modulo(&self, other: &Self) -> Option<Self>;
-    fn sqrt(&self) -> Option<Self>;
-    fn min(&self, other: &Self) -> Self;
-    fn max(&self, other: &Self) -> Self;
-    fn null(&self, other: &Self) -> Self;
+    fn add(&self, other: &Self) -> Result<Self, Error>;
+    fn subtract(&self, other: &Self) -> Result<Self, Error>;
+    fn multiply(&self, other: &Self) -> Result<Self, Error>;
+    fn divide(&self, other: &Self) -> Result<Self, Error>;
+    fn modulo(&self, other: &Self) -> Result<Self, Error>;
+    fn sqrt(&self) -> Result<Self, Error>;
+    fn min(&self, other: &Self) -> Result<Self, Error>;
+    fn max(&self, other: &Self) -> Result<Self, Error>;
+    fn null(&self, other: &Self) -> Result<Self, Error>;
     fn is_zero(&self) -> bool;
     fn is_inlined(&self) -> bool;
     fn to_string(&self) -> String;
