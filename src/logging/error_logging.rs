@@ -5,17 +5,6 @@ use std::result::Result;
 pub trait ErrorLogging<T>: Sized {
     fn log(&self);
     fn log_and(self) -> Self;
-
-    fn log_and_fn<F, R>(&self, f: F) -> R
-    where
-        F: Fn(&Self) -> R;
-
-    fn log_and_fn_once<F, R>(self, f: F) -> R
-    where
-        F: FnOnce(Self) -> R;
-
-    fn log_and_ok(self) -> Option<T>;
-    fn log_and_is_ok(&self) -> bool;
 }
 
 impl<T, E> ErrorLogging<T> for Result<T, E>
@@ -34,29 +23,5 @@ where
     fn log_and(self) -> Self {
         self.log();
         self
-    }
-
-    fn log_and_fn<F, R>(&self, f: F) -> R
-    where
-        F: Fn(&Self) -> R,
-    {
-        self.log();
-        f(self)
-    }
-
-    fn log_and_fn_once<F, R>(self, f: F) -> R
-    where
-        F: FnOnce(Self) -> R,
-    {
-        self.log();
-        f(self)
-    }
-
-    fn log_and_ok(self) -> Option<T> {
-        self.log_and_fn_once(Self::ok)
-    }
-
-    fn log_and_is_ok(&self) -> bool {
-        self.log_and_fn(Self::is_ok)
     }
 }
