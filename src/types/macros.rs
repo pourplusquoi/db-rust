@@ -353,7 +353,7 @@ macro_rules! limits {
                 $max
             }
         }
-    }
+    };
 }
 
 macro_rules! genmatch {
