@@ -368,8 +368,8 @@ mod tests {
 
         let bigint2 = Types::BigInt(65536);
         assert!(bigint2.get_as_bool().is_err());
-        assert!(bigint2.get_as_i8().is_err());  // Overflows.
-        assert!(bigint2.get_as_i16().is_err());  // Overflows.
+        assert!(bigint2.get_as_i8().is_err()); // Overflows.
+        assert!(bigint2.get_as_i16().is_err()); // Overflows.
         assert_eq!(65536, bigint2.get_as_i32().unwrap());
         assert_eq!(65536, bigint2.get_as_i64().unwrap());
         assert!(bigint2.get_as_u64().is_err());
@@ -377,7 +377,7 @@ mod tests {
 
         let bigint3 = Types::BigInt(-300);
         assert!(bigint3.get_as_bool().is_err());
-        assert!(bigint3.get_as_i8().is_err());  // Overflows.
+        assert!(bigint3.get_as_i8().is_err()); // Overflows.
         assert_eq!(-300, bigint3.get_as_i16().unwrap());
         assert_eq!(-300, bigint3.get_as_i32().unwrap());
         assert_eq!(-300, bigint3.get_as_i64().unwrap());
