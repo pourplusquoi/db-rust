@@ -5,6 +5,7 @@ use crate::logging::error_logging::ErrorLogging;
 use crate::types::error::Error;
 use crate::types::error::ErrorKind;
 use crate::types::limits::*;
+use crate::types::numeric_util::*;
 use crate::types::types::Operation;
 use crate::types::types::Str;
 use crate::types::types::Types;
@@ -271,7 +272,7 @@ impl<'a> Operation for Value<'a> {
             Types::BigInt(_) => string!(self, "bigint"),
             Types::Decimal(_) => string!(self, "decimal"),
             Types::Timestamp(val) => string!(self, human_readable(val)),
-            Types::Varchar(ref vc) => match vc {
+            Types::Varchar(ref varlen) => match varlen {
                 Varlen::Owned(Str::Val(val)) => val.clone(),
                 Varlen::Borrowed(Str::Val(val)) => val.to_string(),
                 _ => "varchar_max".to_string(),
@@ -289,7 +290,7 @@ impl<'a> Operation for Value<'a> {
             Types::BigInt(val) => reinterpret::write_i64(dst, val),
             Types::Decimal(val) => reinterpret::write_f64(dst, val),
             Types::Timestamp(val) => reinterpret::write_u64(dst, val),
-            Types::Varchar(ref vc) => match vc {
+            Types::Varchar(ref varlen) => match varlen {
                 Varlen::Owned(Str::Val(val)) => {
                     reinterpret::write_i8(dst, 0);
                     reinterpret::write_str(&mut dst[1..], val);
@@ -325,8 +326,34 @@ impl<'a> Operation for Value<'a> {
         }
     }
 
-    // TODO: Implement this.
     fn cast_to(&self, dst: &mut Self) -> Result<(), Error> {
+        match self.content {
+            Types::Boolean(src) => match &mut dst.content {
+                Types::Boolean(val) => *val = src,
+                Types::Varchar(val) => *val = Varlen::Owned(Str::Val(src.to_string())),
+                _ => Err(unsupported!("Cannot cast boolean to given type"))?,
+            },
+            Types::TinyInt(src) => castnum!(dst.content, src, cast, "tinyint"),
+            Types::SmallInt(src) => castnum!(dst.content, src, cast, "smallint"),
+            Types::Integer(src) => castnum!(dst.content, src, cast, "integer"),
+            Types::BigInt(src) => castnum!(dst.content, src, cast, "bigint"),
+            Types::Decimal(src) => castnum!(dst.content, src, (|x| Ok(force_cast(x))), "decimal"),
+            Types::Timestamp(src) => match &mut dst.content {
+                Types::Timestamp(val) => *val = src,
+                Types::Varchar(val) => *val = Varlen::Owned(Str::Val(src.to_string())),
+                _ => Err(unsupported!("Cannot cast boolean to given type"))?,
+            },
+            Types::Varchar(ref varlen) => match &mut dst.content {
+                Types::Boolean(val) => *val = parse::<_, bool>(varlen.borrow()?)? as i8,
+                Types::TinyInt(val) => *val = parse(varlen.borrow()?)?,
+                Types::SmallInt(val) => *val = parse(varlen.borrow()?)?,
+                Types::Integer(val) => *val = parse(varlen.borrow()?)?,
+                Types::BigInt(val) => *val = parse(varlen.borrow()?)?,
+                Types::Decimal(val) => *val = parse(varlen.borrow()?)?,
+                Types::Timestamp(val) => *val = parse(varlen.borrow()?)?,
+                Types::Varchar(val) => *val = varlen.clone(),
+            },
+        }
         Ok(())
     }
 }

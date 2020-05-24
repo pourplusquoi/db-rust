@@ -14,6 +14,7 @@ pub struct Error {
 pub enum ErrorKind {
     NotSupported,
     CannotCast,
+    CannotParse,
     DivideByZero,
     SqrtOnNegative,
     Overflow,

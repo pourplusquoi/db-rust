@@ -274,6 +274,23 @@ macro_rules! arithmetic {
     }};
 }
 
+macro_rules! castnum {
+    ($x:expr, $y:ident, $z:tt, $w:expr) => {{
+        match &mut $x {
+            Types::TinyInt(dst) => *dst = $z($y)?,
+            Types::SmallInt(dst) => *dst = $z($y)?,
+            Types::Integer(dst) => *dst = $z($y)?,
+            Types::BigInt(dst) => *dst = $z($y)?,
+            Types::Decimal(dst) => *dst = $z($y)?,
+            Types::Varchar(dst) => *dst = Varlen::Owned(Str::Val($y.to_string())),
+            _ => Err(Error::new(
+                ErrorKind::CannotCast,
+                &*format!("Cannot cast {} to given type", $w),
+            ))?,
+        }
+    }};
+}
+
 macro_rules! forward {
     ($x:ident, $y:ident, $z:ty) => {
         fn $y(&self) -> $z {
@@ -309,6 +326,17 @@ macro_rules! primitive_from {
         impl PrimitiveFrom<$x> for $y {
             fn from(val: $x) -> $y {
                 val as $y
+            }
+        }
+    };
+}
+
+macro_rules! parse_into {
+    ($x:ty) => {
+        impl ParseInto<$x> for &str {
+            fn into(self) -> Result<$x, Error> {
+                self.parse::<$x>()
+                    .map_err(|_| Error::new(ErrorKind::CannotParse, "Parse failure"))
             }
         }
     };

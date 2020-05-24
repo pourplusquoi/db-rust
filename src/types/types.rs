@@ -79,6 +79,14 @@ impl<'a> Varlen<'a> {
             Varlen::Borrowed(s) => s.len(),
         }
     }
+
+    pub fn borrow(&self) -> Result<&str, Error> {
+        match self {
+            Varlen::Owned(Str::Val(val)) => Ok(val),
+            Varlen::Borrowed(Str::Val(val)) => Ok(val),
+            _ => Err(unsupported!("Cannot get string from Str::MaxVal")),
+        }
+    }
 }
 
 impl<'a> Types<'a> {
@@ -102,9 +110,12 @@ impl<'a> Types<'a> {
         }
     }
 
-    pub fn is_coercable_from(&self, other: &Self) -> bool {
+    pub fn is_coercable_to(&self, other: &Self) -> bool {
         match self {
-            Self::Boolean(_) => true,
+            Self::Boolean(_) => match other {
+                Self::Boolean(_) | Self::Varchar(_) => true,
+                _ => false,
+            },
             Self::TinyInt(_)
             | Self::SmallInt(_)
             | Self::Integer(_)
