@@ -144,11 +144,9 @@ impl<'a> Operation for Value<'a> {
             Err(Error::new(ErrorKind::DivideByZero, "Cannot modulo by zero"))
         } else {
             let res = match self.content {
-                Types::Decimal(val) => arithmetic_decimal!(
-                    val,
-                    other,
-                    (|x: f64, y: f64| x - (x / y).trunc() * y)
-                )?,
+                Types::Decimal(val) => {
+                    arithmetic_decimal!(val, other, (|x: f64, y: f64| x - (x / y).trunc() * y))?
+                }
                 _ => arithmetic!(self, other, (|x, y| x % y))?,
             };
             Ok(res)

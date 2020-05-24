@@ -1,6 +1,7 @@
 use crate::types::error::Error;
 use crate::types::error::ErrorKind;
 use crate::types::limits::*;
+use crate::types::numeric_util::*;
 use std::clone::Clone;
 use std::result::Result;
 
@@ -264,6 +265,9 @@ impl<'a> Types<'a> {
     pub fn get_as_i8(&self) -> Result<i8, Error> {
         let res = match self {
             Self::TinyInt(val) => *val as i8,
+            Self::SmallInt(val) => cast::<_, i8>(*val)?,
+            Self::Integer(val) => cast::<_, i8>(*val)?,
+            Self::BigInt(val) => cast::<_, i8>(*val)?,
             _ => Err(unsupported!("Invalid type for `get_as_i8`"))?,
         };
         Ok(res)
@@ -273,6 +277,8 @@ impl<'a> Types<'a> {
         let res = match self {
             Self::TinyInt(val) => *val as i16,
             Self::SmallInt(val) => *val as i16,
+            Self::Integer(val) => cast::<_, i16>(*val)?,
+            Self::BigInt(val) => cast::<_, i16>(*val)?,
             _ => Err(unsupported!("Invalid type for `get_as_i16`"))?,
         };
         Ok(res)
@@ -283,6 +289,7 @@ impl<'a> Types<'a> {
             Self::TinyInt(val) => *val as i32,
             Self::SmallInt(val) => *val as i32,
             Self::Integer(val) => *val as i32,
+            Self::BigInt(val) => cast::<_, i32>(*val)?,
             _ => Err(unsupported!("Invalid type for `get_as_i32`"))?,
         };
         Ok(res)
@@ -309,6 +316,10 @@ impl<'a> Types<'a> {
 
     pub fn get_as_f64(&self) -> Result<f64, Error> {
         let res = match self {
+            Self::TinyInt(val) => *val as f64,
+            Self::SmallInt(val) => *val as f64,
+            Self::Integer(val) => *val as f64,
+            Self::BigInt(val) => *val as f64,
             Self::Decimal(val) => *val as f64,
             _ => Err(unsupported!("Invalid type for `get_as_f64`"))?,
         };
@@ -338,4 +349,75 @@ pub trait Operation: Sized {
     fn serialize_to(&self, dst: &mut [u8]);
     fn deserialize_from(&mut self, src: &[u8]);
     fn cast_to(&self, dst: &mut Self) -> Result<(), Error>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn primitive_cast() {
+        let bigint1 = Types::BigInt(64);
+        assert!(bigint1.get_as_bool().is_err());
+        assert_eq!(64, bigint1.get_as_i8().unwrap());
+        assert_eq!(64, bigint1.get_as_i16().unwrap());
+        assert_eq!(64, bigint1.get_as_i32().unwrap());
+        assert_eq!(64, bigint1.get_as_i64().unwrap());
+        assert!(bigint1.get_as_u64().is_err());
+        assert_eq!(64.0, bigint1.get_as_f64().unwrap());
+
+        let bigint2 = Types::BigInt(65536);
+        assert!(bigint2.get_as_bool().is_err());
+        assert!(bigint2.get_as_i8().is_err());  // Overflows.
+        assert!(bigint2.get_as_i16().is_err());  // Overflows.
+        assert_eq!(65536, bigint2.get_as_i32().unwrap());
+        assert_eq!(65536, bigint2.get_as_i64().unwrap());
+        assert!(bigint2.get_as_u64().is_err());
+        assert_eq!(65536.0, bigint2.get_as_f64().unwrap());
+
+        let bigint3 = Types::BigInt(-300);
+        assert!(bigint3.get_as_bool().is_err());
+        assert!(bigint3.get_as_i8().is_err());  // Overflows.
+        assert_eq!(-300, bigint3.get_as_i16().unwrap());
+        assert_eq!(-300, bigint3.get_as_i32().unwrap());
+        assert_eq!(-300, bigint3.get_as_i64().unwrap());
+        assert!(bigint3.get_as_u64().is_err());
+        assert_eq!(-300.0, bigint3.get_as_f64().unwrap());
+
+        let bigint4 = Types::BigInt(0);
+        assert!(bigint4.get_as_bool().is_err());
+        assert_eq!(0, bigint4.get_as_i8().unwrap());
+        assert_eq!(0, bigint4.get_as_i16().unwrap());
+        assert_eq!(0, bigint4.get_as_i32().unwrap());
+        assert_eq!(0, bigint4.get_as_i64().unwrap());
+        assert!(bigint4.get_as_u64().is_err());
+        assert_eq!(0.0, bigint4.get_as_f64().unwrap());
+
+        let boolean = Types::Boolean(0);
+        assert_eq!(0, boolean.get_as_bool().unwrap());
+        assert!(boolean.get_as_i8().is_err());
+        assert!(boolean.get_as_i16().is_err());
+        assert!(boolean.get_as_i32().is_err());
+        assert!(boolean.get_as_i64().is_err());
+        assert!(boolean.get_as_u64().is_err());
+        assert!(boolean.get_as_f64().is_err());
+
+        let timestamp = Types::Timestamp(1234567890);
+        assert!(timestamp.get_as_bool().is_err());
+        assert!(timestamp.get_as_i8().is_err());
+        assert!(timestamp.get_as_i16().is_err());
+        assert!(timestamp.get_as_i32().is_err());
+        assert!(timestamp.get_as_i64().is_err());
+        assert_eq!(1234567890, timestamp.get_as_u64().unwrap());
+        assert!(timestamp.get_as_f64().is_err());
+
+        let decimal = Types::Decimal(12.3);
+        assert!(decimal.get_as_bool().is_err());
+        assert!(decimal.get_as_i8().is_err());
+        assert!(decimal.get_as_i16().is_err());
+        assert!(decimal.get_as_i32().is_err());
+        assert!(decimal.get_as_i64().is_err());
+        assert!(decimal.get_as_u64().is_err());
+        assert_eq!(12.3, decimal.get_as_f64().unwrap());
+    }
 }

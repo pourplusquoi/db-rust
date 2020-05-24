@@ -11,7 +11,7 @@ macro_rules! aor {
             Ok(r) => r,
             Err(e) => return Err(e).log_and().ok(),
         }
-    }
+    };
 }
 
 macro_rules! arithmetic_tinyint {
@@ -24,7 +24,7 @@ macro_rules! arithmetic_tinyint {
             Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::tinyint());
-                $y.cast_to(&mut rhs);
+                $y.cast_to(&mut rhs)?;
                 value!($closure($x, rhs.get_as_i8()?), TinyInt)
             }
         };
@@ -42,7 +42,7 @@ macro_rules! compare_tinyint {
             Types::Decimal(rhs) => $closure2($x as f64 - rhs),
             _ => {
                 let mut rhs = Value::new(Types::tinyint());
-                $y.cast_to(&mut rhs);
+                aor!($y.cast_to(&mut rhs));
                 $closure1($x, aor!(rhs.get_as_i8()))
             }
         };
@@ -60,7 +60,7 @@ macro_rules! arithmetic_smallint {
             Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::smallint());
-                $y.cast_to(&mut rhs);
+                $y.cast_to(&mut rhs)?;
                 value!($closure($x, rhs.get_as_i16()?), SmallInt)
             }
         };
@@ -78,7 +78,7 @@ macro_rules! compare_smallint {
             Types::Decimal(rhs) => $closure2($x as f64 - rhs),
             _ => {
                 let mut rhs = Value::new(Types::smallint());
-                $y.cast_to(&mut rhs);
+                aor!($y.cast_to(&mut rhs));
                 $closure1($x, aor!(rhs.get_as_i16()))
             }
         };
@@ -96,7 +96,7 @@ macro_rules! arithmetic_integer {
             Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::integer());
-                $y.cast_to(&mut rhs);
+                $y.cast_to(&mut rhs)?;
                 value!($closure($x, rhs.get_as_i32()?), Integer)
             }
         };
@@ -114,7 +114,7 @@ macro_rules! compare_integer {
             Types::Decimal(rhs) => $closure2($x as f64 - rhs),
             _ => {
                 let mut rhs = Value::new(Types::integer());
-                $y.cast_to(&mut rhs);
+                aor!($y.cast_to(&mut rhs));
                 $closure1($x, aor!(rhs.get_as_i32()))
             }
         };
@@ -132,7 +132,7 @@ macro_rules! arithmetic_bigint {
             Types::Decimal(rhs) => value!($closure($x as f64, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::bigint());
-                $y.cast_to(&mut rhs);
+                $y.cast_to(&mut rhs)?;
                 value!($closure($x, rhs.get_as_i64()?), BigInt)
             }
         };
@@ -150,7 +150,7 @@ macro_rules! compare_bigint {
             Types::Decimal(rhs) => $closure2($x as f64 - rhs),
             _ => {
                 let mut rhs = Value::new(Types::bigint());
-                $y.cast_to(&mut rhs);
+                aor!($y.cast_to(&mut rhs));
                 $closure1($x, aor!(rhs.get_as_i64()))
             }
         };
@@ -168,7 +168,7 @@ macro_rules! arithmetic_decimal {
             Types::Decimal(rhs) => value!($closure($x, rhs), Decimal),
             _ => {
                 let mut rhs = Value::new(Types::decimal());
-                $y.cast_to(&mut rhs);
+                $y.cast_to(&mut rhs)?;
                 value!($closure($x, rhs.get_as_f64()?), Decimal)
             }
         };
@@ -186,7 +186,7 @@ macro_rules! compare_decimal {
             Types::Decimal(rhs) => $closure($x - rhs),
             _ => {
                 let mut rhs = Value::new(Types::decimal());
-                $y.cast_to(&mut rhs);
+                aor!($y.cast_to(&mut rhs));
                 $closure($x - aor!(rhs.get_as_f64()))
             }
         };
@@ -197,7 +197,7 @@ macro_rules! compare_decimal {
 macro_rules! compare_bool {
     ($x:ident, $y:ident, $closure:tt) => {{
         let mut rhs = Value::new(Types::boolean());
-        $y.cast_to(&mut rhs);
+        aor!($y.cast_to(&mut rhs));
         Ok($closure($x, aor!(rhs.get_as_bool()))) as Result<_, Error>
     }};
 }
@@ -214,7 +214,7 @@ macro_rules! compare_varchar {
             Types::Varchar(ref rhs) => Ok($closure(varlen_cmp($x, rhs), 0)),
             _ => {
                 let mut rhs = Value::new(Types::owned());
-                $y.cast_to(&mut rhs);
+                aor!($y.cast_to(&mut rhs));
                 match varlen_value_cmp($x, &rhs) {
                     Ok(r) => Ok($closure(r, 0)),
                     Err(e) => Err(e),
@@ -232,10 +232,18 @@ macro_rules! compare {
         } else {
             match $x.content {
                 Types::Boolean(lhs) => compare_bool!(lhs, $y, $closure1).log_and().ok(),
-                Types::TinyInt(lhs) => compare_tinyint!(lhs, $y, $closure1, $closure2).log_and().ok(),
-                Types::SmallInt(lhs) => compare_smallint!(lhs, $y, $closure1, $closure2).log_and().ok(),
-                Types::Integer(lhs) => compare_integer!(lhs, $y, $closure1, $closure2).log_and().ok(),
-                Types::BigInt(lhs) => compare_bigint!(lhs, $y, $closure1, $closure2).log_and().ok(),
+                Types::TinyInt(lhs) => compare_tinyint!(lhs, $y, $closure1, $closure2)
+                    .log_and()
+                    .ok(),
+                Types::SmallInt(lhs) => compare_smallint!(lhs, $y, $closure1, $closure2)
+                    .log_and()
+                    .ok(),
+                Types::Integer(lhs) => compare_integer!(lhs, $y, $closure1, $closure2)
+                    .log_and()
+                    .ok(),
+                Types::BigInt(lhs) => compare_bigint!(lhs, $y, $closure1, $closure2)
+                    .log_and()
+                    .ok(),
                 Types::Timestamp(lhs) => compare_timestamp!(lhs, $y, $closure1).log_and().ok(),
                 Types::Decimal(lhs) => compare_decimal!(lhs, $y, $closure2).log_and().ok(),
                 Types::Varchar(ref lhs) => compare_varchar!(lhs, $y, $closure1).log_and().ok(),
@@ -293,6 +301,16 @@ macro_rules! string {
 macro_rules! unsupported {
     ($x:expr) => {
         Error::new(ErrorKind::NotSupported, $x)
+    };
+}
+
+macro_rules! primitive_from {
+    ($x:ty, $y:ty) => {
+        impl PrimitiveFrom<$x> for $y {
+            fn from(val: $x) -> $y {
+                val as $y
+            }
+        }
     };
 }
 
