@@ -354,7 +354,7 @@ pub trait Operation: Sized {
     fn min(&self, other: &Self) -> Result<Self, Error>;
     fn max(&self, other: &Self) -> Result<Self, Error>;
     fn null(&self, other: &Self) -> Result<Self, Error>;
-    fn is_zero(&self) -> bool;
+    fn is_zero(&self) -> Result<bool, Error>;
     fn is_inlined(&self) -> bool;
     fn to_string(&self) -> String;
     fn serialize_to(&self, dst: &mut [u8]);

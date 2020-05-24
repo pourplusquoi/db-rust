@@ -134,7 +134,7 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn divide(&self, other: &Self) -> Result<Self, Error> {
-        if other.is_zero() {
+        if other.is_zero()? {
             Err(Error::new(ErrorKind::DivideByZero, "Cannot divide by zero"))
         } else {
             arithmetic!(self, other, (|x, y| x / y))
@@ -142,7 +142,7 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn modulo(&self, other: &Self) -> Result<Self, Error> {
-        if other.is_zero() {
+        if other.is_zero()? {
             Err(Error::new(ErrorKind::DivideByZero, "Cannot modulo by zero"))
         } else {
             let res = match self.content {
@@ -156,7 +156,7 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn sqrt(&self) -> Result<Self, Error> {
-        assert_numeric(self);
+        assert_numeric(self)?;
         if self.is_null() {
             let null = Types::decimal().null_val()?;
             return Ok(Value::new(null));
@@ -177,7 +177,7 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn min(&self, other: &Self) -> Result<Self, Error> {
-        assert_comparable(self, other);
+        assert_comparable(self, other)?;
         if self.is_null() || other.is_null() {
             return self.null(other);
         }
@@ -189,7 +189,7 @@ impl<'a> Operation for Value<'a> {
     }
 
     fn max(&self, other: &Self) -> Result<Self, Error> {
-        assert_comparable(self, other);
+        assert_comparable(self, other)?;
         if self.is_null() || other.is_null() {
             return self.null(other);
         }
@@ -235,15 +235,16 @@ impl<'a> Operation for Value<'a> {
         }
     }
 
-    fn is_zero(&self) -> bool {
-        match self.content {
+    fn is_zero(&self) -> Result<bool, Error> {
+        let res = match self.content {
             Types::TinyInt(val) => val == 0,
             Types::SmallInt(val) => val == 0,
             Types::Integer(val) => val == 0,
             Types::BigInt(val) => val == 0,
             Types::Decimal(val) => almost_zero(val),
-            _ => panic!("Type error for is_zero"),
-        }
+            _ => Err(unsupported!("Invalid type for `is_zero`"))?,
+        };
+        Ok(res)
     }
 
     // Is the data inlined into this classes storage space, or must it be accessed
@@ -362,15 +363,19 @@ fn almost_zero(val: f64) -> bool {
     val <= std::f64::EPSILON && val >= -std::f64::EPSILON
 }
 
-fn assert_numeric(val: &Value) {
+fn assert_numeric(val: &Value) -> Result<(), Error> {
     if !val.is_numeric() {
-        panic!("Non numeric");
+        Err(unsupported!("Non numeric"))
+    } else {
+        Ok(())
     }
 }
 
-fn assert_comparable(lhs: &Value, rhs: &Value) {
+fn assert_comparable(lhs: &Value, rhs: &Value) -> Result<(), Error> {
     if !lhs.is_comparable_to(rhs) {
-        panic!("Cannot compare");
+        Err(unsupported!("Cannot compare"))
+    } else {
+        Ok(())
     }
 }
 

@@ -4,8 +4,8 @@ macro_rules! value {
     };
 }
 
-// Assign or return.
-macro_rules! aor {
+// Unwrap or return.
+macro_rules! unwrapor {
     ($x:expr) => {
         match $x {
             Ok(r) => r,
@@ -42,8 +42,8 @@ macro_rules! compare_tinyint {
             Types::Decimal(rhs) => $closure2($x as f64 - rhs),
             _ => {
                 let mut rhs = Value::new(Types::tinyint());
-                aor!($y.cast_to(&mut rhs));
-                $closure1($x, aor!(rhs.get_as_i8()))
+                unwrapor!($y.cast_to(&mut rhs));
+                $closure1($x, unwrapor!(rhs.get_as_i8()))
             }
         };
         Ok(res) as Result<_, Error>
@@ -78,8 +78,8 @@ macro_rules! compare_smallint {
             Types::Decimal(rhs) => $closure2($x as f64 - rhs),
             _ => {
                 let mut rhs = Value::new(Types::smallint());
-                aor!($y.cast_to(&mut rhs));
-                $closure1($x, aor!(rhs.get_as_i16()))
+                unwrapor!($y.cast_to(&mut rhs));
+                $closure1($x, unwrapor!(rhs.get_as_i16()))
             }
         };
         Ok(res) as Result<_, Error>
@@ -114,8 +114,8 @@ macro_rules! compare_integer {
             Types::Decimal(rhs) => $closure2($x as f64 - rhs),
             _ => {
                 let mut rhs = Value::new(Types::integer());
-                aor!($y.cast_to(&mut rhs));
-                $closure1($x, aor!(rhs.get_as_i32()))
+                unwrapor!($y.cast_to(&mut rhs));
+                $closure1($x, unwrapor!(rhs.get_as_i32()))
             }
         };
         Ok(res) as Result<_, Error>
@@ -150,8 +150,8 @@ macro_rules! compare_bigint {
             Types::Decimal(rhs) => $closure2($x as f64 - rhs),
             _ => {
                 let mut rhs = Value::new(Types::bigint());
-                aor!($y.cast_to(&mut rhs));
-                $closure1($x, aor!(rhs.get_as_i64()))
+                unwrapor!($y.cast_to(&mut rhs));
+                $closure1($x, unwrapor!(rhs.get_as_i64()))
             }
         };
         Ok(res) as Result<_, Error>
@@ -186,8 +186,8 @@ macro_rules! compare_decimal {
             Types::Decimal(rhs) => $closure($x - rhs),
             _ => {
                 let mut rhs = Value::new(Types::decimal());
-                aor!($y.cast_to(&mut rhs));
-                $closure($x - aor!(rhs.get_as_f64()))
+                unwrapor!($y.cast_to(&mut rhs));
+                $closure($x - unwrapor!(rhs.get_as_f64()))
             }
         };
         Ok(res) as Result<_, Error>
@@ -197,14 +197,14 @@ macro_rules! compare_decimal {
 macro_rules! compare_bool {
     ($x:ident, $y:ident, $closure:tt) => {{
         let mut rhs = Value::new(Types::boolean());
-        aor!($y.cast_to(&mut rhs));
-        Ok($closure($x, aor!(rhs.get_as_bool()))) as Result<_, Error>
+        unwrapor!($y.cast_to(&mut rhs));
+        Ok($closure($x, unwrapor!(rhs.get_as_bool()))) as Result<_, Error>
     }};
 }
 
 macro_rules! compare_timestamp {
     ($x:ident, $y:ident, $closure:tt) => {{
-        Ok($closure($x, aor!($y.get_as_u64()))) as Result<_, Error>
+        Ok($closure($x, unwrapor!($y.get_as_u64()))) as Result<_, Error>
     }};
 }
 
@@ -214,7 +214,7 @@ macro_rules! compare_varchar {
             Types::Varchar(ref rhs) => Ok($closure(varlen_cmp($x, rhs), 0)),
             _ => {
                 let mut rhs = Value::new(Types::owned());
-                aor!($y.cast_to(&mut rhs));
+                unwrapor!($y.cast_to(&mut rhs));
                 match varlen_value_cmp($x, &rhs) {
                     Ok(r) => Ok($closure(r, 0)),
                     Err(e) => Err(e),
@@ -226,7 +226,7 @@ macro_rules! compare_varchar {
 
 macro_rules! compare {
     ($x:ident, $y:ident, $closure1:tt, $closure2:tt) => {{
-        assert_comparable($x, $y);
+        unwrapor!(assert_comparable($x, $y));
         if $x.is_null() || $y.is_null() {
             None
         } else {
@@ -254,8 +254,8 @@ macro_rules! compare {
 
 macro_rules! arithmetic {
     ($x:ident, $y:ident, $closure:tt) => {{
-        assert_numeric($x);
-        assert_comparable($x, $y);
+        assert_numeric($x)?;
+        assert_comparable($x, $y)?;
         if $x.is_null() || $y.is_null() {
             $x.null($y)
         } else {
