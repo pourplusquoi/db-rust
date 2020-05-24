@@ -287,8 +287,8 @@ impl<'a> Operation for Value<'a> {
     fn deserialize_from(&mut self, src: &[u8]) {}
 
     // TODO: Implement this.
-    fn cast_to(&self, dst: &mut Self) -> bool {
-        false
+    fn cast_to(&self, dst: &mut Self) -> Result<(), Error> {
+        Ok(())
     }
 }
 

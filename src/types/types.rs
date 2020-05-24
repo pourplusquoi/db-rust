@@ -337,5 +337,5 @@ pub trait Operation: Sized {
     fn to_string(&self) -> String;
     fn serialize_to(&self, dst: &mut [u8]);
     fn deserialize_from(&mut self, src: &[u8]);
-    fn cast_to(&self, dst: &mut Self) -> bool;
+    fn cast_to(&self, dst: &mut Self) -> Result<(), Error>;
 }
