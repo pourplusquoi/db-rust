@@ -177,11 +177,14 @@ macro_rules! compare_decimal {
 macro_rules! compare_varchar {
     ($x:ident, $y:ident, $closure:tt) => {{
         match $y.content {
-            Types::Varchar(ref rhs) => $closure(varlen_cmp($x, rhs), 0),
+            Types::Varchar(ref rhs) => Ok($closure(varlen_cmp($x, rhs), 0)),
             _ => {
                 let mut rhs = Value::new(Types::owned());
                 $y.cast_to(&mut rhs);
-                $closure(varlen_value_cmp($x, &rhs), 0)
+                match varlen_value_cmp($x, &rhs) {
+                    Ok(r) => Ok($closure(r, 0)),
+                    Err(e) => Err(e),
+                }
             }
         }
     }};
@@ -193,20 +196,20 @@ macro_rules! compare {
         if $x.is_null() || $y.is_null() {
             None
         } else {
-            Some(match $x.content {
-                Types::Boolean(lhs) => {
+            match $x.content {
+                Types::Boolean(lhs) => Some({
                     let mut rhs = Value::new(Types::boolean());
                     $y.cast_to(&mut rhs);
                     $closure1(lhs, rhs.get_as_bool())
-                }
-                Types::TinyInt(lhs) => compare_tinyint!(lhs, $y, $closure1, $closure2),
-                Types::SmallInt(lhs) => compare_smallint!(lhs, $y, $closure1, $closure2),
-                Types::Integer(lhs) => compare_integer!(lhs, $y, $closure1, $closure2),
-                Types::BigInt(lhs) => compare_bigint!(lhs, $y, $closure1, $closure2),
-                Types::Timestamp(lhs) => $closure1(lhs, $y.get_as_u64()),
-                Types::Decimal(lhs) => compare_decimal!(lhs, $y, $closure2),
-                Types::Varchar(ref lhs) => compare_varchar!(lhs, $y, $closure1),
-            })
+                }),
+                Types::TinyInt(lhs) => Some(compare_tinyint!(lhs, $y, $closure1, $closure2)),
+                Types::SmallInt(lhs) => Some(compare_smallint!(lhs, $y, $closure1, $closure2)),
+                Types::Integer(lhs) => Some(compare_integer!(lhs, $y, $closure1, $closure2)),
+                Types::BigInt(lhs) => Some(compare_bigint!(lhs, $y, $closure1, $closure2)),
+                Types::Timestamp(lhs) => Some($closure1(lhs, $y.get_as_u64())),
+                Types::Decimal(lhs) => Some(compare_decimal!(lhs, $y, $closure2)),
+                Types::Varchar(ref lhs) => compare_varchar!(lhs, $y, $closure1).log_and().ok(),
+            }
         }
     }};
 }
@@ -255,6 +258,12 @@ macro_rules! string {
             $x.to_string()
         }
     }};
+}
+
+macro_rules! unsupported {
+    ($x:expr) => {
+        Error::new(ErrorKind::NotSupported, $x)
+    };
 }
 
 macro_rules! genmatch {

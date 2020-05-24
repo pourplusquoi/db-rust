@@ -224,23 +224,23 @@ impl<'a> Types<'a> {
 
     pub fn null_val(mut self) -> Result<Self, Error> {
         match &mut self {
-            Self::Boolean(val) => Ok(*val = RSDB_BOOLEAN_NULL),
-            Self::TinyInt(val) => Ok(*val = RSDB_INT8_NULL),
-            Self::SmallInt(val) => Ok(*val = RSDB_INT16_NULL),
-            Self::Integer(val) => Ok(*val = RSDB_INT32_NULL),
-            Self::BigInt(val) => Ok(*val = RSDB_INT64_NULL),
-            Self::Decimal(val) => Ok(*val = RSDB_DECIMAL_NULL),
-            Self::Timestamp(val) => Ok(*val = RSDB_TIMESTAMP_NULL),
+            Self::Boolean(val) => *val = RSDB_BOOLEAN_NULL,
+            Self::TinyInt(val) => *val = RSDB_INT8_NULL,
+            Self::SmallInt(val) => *val = RSDB_INT16_NULL,
+            Self::Integer(val) => *val = RSDB_INT32_NULL,
+            Self::BigInt(val) => *val = RSDB_INT64_NULL,
+            Self::Decimal(val) => *val = RSDB_DECIMAL_NULL,
+            Self::Timestamp(val) => *val = RSDB_TIMESTAMP_NULL,
             _ => Err(Error::new(
                 ErrorKind::NotSupported,
                 "Invalid type for `null_val`",
-            )),
-        }?;
+            ))?,
+        };
         Ok(self)
     }
 
-    pub fn to_varlen(&self) -> Varlen {
-        match self {
+    pub fn to_varlen(&self) -> Result<Varlen, Error> {
+        let varlen = match self {
             Self::Boolean(val) => Varlen::Owned(Str::Val(val.to_string())),
             Self::TinyInt(val) => Varlen::Owned(Str::Val(val.to_string())),
             Self::SmallInt(val) => Varlen::Owned(Str::Val(val.to_string())),
@@ -248,8 +248,9 @@ impl<'a> Types<'a> {
             Self::BigInt(val) => Varlen::Owned(Str::Val(val.to_string())),
             Self::Decimal(val) => Varlen::Owned(Str::Val(val.to_string())),
             Self::Timestamp(val) => Varlen::Owned(Str::Val(val.to_string())),
-            _ => panic!("Type error for to_varlen"),
-        }
+            _ => Err(unsupported!("Type error for to_varlen"))?,
+        };
+        Ok(varlen)
     }
 
     pub fn get_as_bool(&self) -> i8 {

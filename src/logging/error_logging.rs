@@ -4,12 +4,16 @@ use std::result::Result;
 
 pub trait ErrorLogging<T>: Sized {
     fn log(&self);
+    fn log_and(self) -> Self;
+
     fn log_and_fn<F, R>(&self, f: F) -> R
     where
         F: Fn(&Self) -> R;
+
     fn log_and_fn_once<F, R>(self, f: F) -> R
     where
         F: FnOnce(Self) -> R;
+
     fn log_and_ok(self) -> Option<T>;
     fn log_and_is_ok(&self) -> bool;
 }
@@ -25,6 +29,11 @@ where
                 error!("{:?}", e);
             }
         };
+    }
+
+    fn log_and(self) -> Self {
+        self.log();
+        self
     }
 
     fn log_and_fn<F, R>(&self, f: F) -> R

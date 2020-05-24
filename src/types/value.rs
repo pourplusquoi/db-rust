@@ -1,5 +1,6 @@
 #![allow(unused_variables)]
 
+use crate::logging::error_logging::ErrorLogging;
 use crate::types::error::Error;
 use crate::types::error::ErrorKind;
 use crate::types::limits::*;
@@ -160,15 +161,15 @@ impl<'a> Operation for Value<'a> {
             return Ok(Value::new(null));
         }
         let val = match self.content {
-            Types::TinyInt(val) => Ok(val as f64),
-            Types::SmallInt(val) => Ok(val as f64),
-            Types::Integer(val) => Ok(val as f64),
-            Types::BigInt(val) => Ok(val as f64),
-            Types::Decimal(val) => Ok(val as f64),
-            _ => Err(unsupported("Invalid type for `sqrt`")),
-        }?;
+            Types::TinyInt(val) => val as f64,
+            Types::SmallInt(val) => val as f64,
+            Types::Integer(val) => val as f64,
+            Types::BigInt(val) => val as f64,
+            Types::Decimal(val) => val as f64,
+            _ => Err(unsupported!("Invalid type for `sqrt`"))?,
+        };
         if val < 0.0 {
-            Err(unsupported("Cannot take `sqrt` on negative value"))
+            Err(unsupported!("Cannot take `sqrt` on negative value"))
         } else {
             Ok(value!(val.sqrt(), Decimal))
         }
@@ -202,34 +203,34 @@ impl<'a> Operation for Value<'a> {
         match self.content {
             Types::TinyInt(_) => genmatch!(
                 other.content,
-                Err(unsupported("Invalid type for `null` on TinyInt")),
+                Err(unsupported!("Invalid type for `null` on TinyInt")),
                 { [TinyInt], nullas!(self) },
                 { [SmallInt, Integer, BigInt, Decimal], nullas!(other) }
             ),
             Types::SmallInt(_) => genmatch!(
                 other.content,
-                Err(unsupported("Invalid type for `null` on SmallInt")),
+                Err(unsupported!("Invalid type for `null` on SmallInt")),
                 { [TinyInt, SmallInt], nullas!(self) },
                 { [Integer, BigInt, Decimal], nullas!(other) }
             ),
             Types::Integer(_) => genmatch!(
                 other.content,
-                Err(unsupported("Invalid type for `null` on Integer")),
+                Err(unsupported!("Invalid type for `null` on Integer")),
                 { [TinyInt, SmallInt, Integer], nullas!(self) },
                 { [BigInt, Decimal], nullas!(other) }
             ),
             Types::BigInt(_) => genmatch!(
                 other.content,
-                Err(unsupported("Invalid type for `null` on BigInt")),
+                Err(unsupported!("Invalid type for `null` on BigInt")),
                 { [TinyInt, SmallInt, Integer, BigInt], nullas!(self) },
                 { [Decimal], nullas!(other) }
             ),
             Types::Decimal(_) => genmatch!(
                 other.content,
-                Err(unsupported("Invalid type for `null` on Decimal")),
+                Err(unsupported!("Invalid type for `null` on Decimal")),
                 { [TinyInt, SmallInt, Integer, BigInt, Decimal], nullas!(self) }
             ),
-            _ => Err(unsupported("Invalid type for `null`")),
+            _ => Err(unsupported!("Invalid type for `null`")),
         }
     }
 
@@ -306,11 +307,11 @@ fn assert_comparable(lhs: &Value, rhs: &Value) {
     }
 }
 
-fn varlen_value_cmp(lhs: &Varlen, rhs: &Value) -> i8 {
-    match rhs.content {
+fn varlen_value_cmp(lhs: &Varlen, rhs: &Value) -> Result<i8, Error> {
+    Ok(match rhs.content {
         Types::Varchar(ref varlen) => varlen_cmp(lhs, varlen),
-        _ => varlen_cmp(lhs, &rhs.content.to_varlen()),
-    }
+        _ => varlen_cmp(lhs, &rhs.content.to_varlen()?),
+    })
 }
 
 fn human_readable(mut tm: u64) -> String {
@@ -367,10 +368,6 @@ fn compute_size<T: PartialEq>(val: T, null: T) -> u32 {
     } else {
         0
     }
-}
-
-fn unsupported(message: &str) -> Error {
-    Error::new(ErrorKind::NotSupported, message)
 }
 
 #[cfg(test)]
