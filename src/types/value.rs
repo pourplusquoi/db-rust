@@ -15,7 +15,7 @@ use std::result::Result;
 #[derive(Clone)]
 pub struct Value<'a> {
     content: Types<'a>,
-    size: u32,
+    size: usize,
 }
 
 impl<'a> Value<'a> {
@@ -27,7 +27,7 @@ impl<'a> Value<'a> {
     }
 
     pub fn len(&self) -> usize {
-        self.size as usize
+        self.size
     }
 
     pub fn borrow(&self) -> &'a Types {
@@ -39,7 +39,7 @@ impl<'a> Value<'a> {
     }
 
     pub fn is_null(&self) -> bool {
-        self.size == RSDB_VALUE_NULL
+        self.size == RSDB_VALUE_NULL as usize
     }
 
     pub fn is_numeric(&self) -> bool {
@@ -234,10 +234,7 @@ impl<'a> Operation for Value<'a> {
     // Is the data inlined into this classes storage space, or must it be accessed
     // through an indirection/pointer?
     fn is_inlined(&self) -> bool {
-        match self.content {
-            Types::Varchar(_) => false,
-            _ => true,
-        }
+        self.content.is_inlined()
     }
 
     fn to_string(&self) -> String {
@@ -405,23 +402,23 @@ fn human_readable(mut tm: u64) -> String {
     s
 }
 
-fn get_size<'a>(content: &Types<'a>) -> u32 {
+fn get_size<'a>(content: &Types<'a>) -> usize {
+    let size = content.size();
     match content {
-        Types::Boolean(val) => choose_size(val, &RSDB_BOOLEAN_NULL, 1),
-        Types::TinyInt(val) => choose_size(val, &RSDB_INT8_NULL, 1),
-        Types::SmallInt(val) => choose_size(val, &RSDB_INT16_NULL, 2),
-        Types::Integer(val) => choose_size(val, &RSDB_INT32_NULL, 4),
-        Types::BigInt(val) => choose_size(val, &RSDB_INT64_NULL, 8),
-        Types::Timestamp(val) => choose_size(val, &RSDB_TIMESTAMP_NULL, 8),
-        Types::Decimal(val) => choose_size(val, &RSDB_DECIMAL_NULL, 8),
-        // Assuming the length of string fits in u32.
-        Types::Varchar(val) => val.len() as u32,
+        Types::Boolean(val) => choose_size(val, &RSDB_BOOLEAN_NULL, size),
+        Types::TinyInt(val) => choose_size(val, &RSDB_INT8_NULL, size),
+        Types::SmallInt(val) => choose_size(val, &RSDB_INT16_NULL, size),
+        Types::Integer(val) => choose_size(val, &RSDB_INT32_NULL, size),
+        Types::BigInt(val) => choose_size(val, &RSDB_INT64_NULL, size),
+        Types::Timestamp(val) => choose_size(val, &RSDB_TIMESTAMP_NULL, size),
+        Types::Decimal(val) => choose_size(val, &RSDB_DECIMAL_NULL, size),
+        Types::Varchar(val) => val.len(),
     }
 }
 
-fn choose_size<T: PartialEq>(val: &T, null: &T, size: u32) -> u32 {
+fn choose_size<T: PartialEq>(val: &T, null: &T, size: usize) -> usize {
     if val == null {
-        RSDB_VALUE_NULL
+        RSDB_VALUE_NULL as usize
     } else {
         size
     }

@@ -110,6 +110,13 @@ impl<'a> Types<'a> {
         }
     }
 
+    pub fn is_inlined(&self) -> bool {
+        match self {
+            Types::Varchar(_) => false,
+            _ => true,
+        }
+    }
+
     pub fn is_coercable_to(&self, other: &Self) -> bool {
         match self {
             Self::Boolean(_) => match other {
@@ -137,7 +144,7 @@ impl<'a> Types<'a> {
         }
     }
 
-    pub fn type_size(&self) -> usize {
+    pub fn size(&self) -> usize {
         match self {
             Self::Boolean(_) => 1,
             Self::TinyInt(_) => 1,
@@ -150,7 +157,20 @@ impl<'a> Types<'a> {
         }
     }
 
-    pub fn type_id(&self) -> String {
+    pub fn id(&self) -> u8 {
+        match self {
+            Self::Boolean(_) => 1,
+            Self::TinyInt(_) => 2,
+            Self::SmallInt(_) => 3,
+            Self::Integer(_) => 4,
+            Self::BigInt(_) => 5,
+            Self::Decimal(_) => 6,
+            Self::Timestamp(_) => 7,
+            Self::Varchar(_) => 8,
+        }
+    }
+
+    pub fn name(&self) -> String {
         match self {
             Self::Boolean(_) => "BOOLEAN",
             Self::TinyInt(_) => "TINYINT",
