@@ -2,7 +2,7 @@
 
 use crate::types::types::Types;
 
-struct Column<'a> {
+pub struct Column<'a> {
     // The name of the column.
     name: String,
     // The value type of column.
@@ -10,7 +10,7 @@ struct Column<'a> {
     // Whether the column is inlined.
     inlined: bool,
     // The offset of column in tuple.
-    offset: usize,
+    offset: Option<usize>,
     // If the column is not inlined, this is set to pointer size; else, it is
     // set to length of the fixed length.
     fixed_len: usize,
@@ -20,16 +20,16 @@ struct Column<'a> {
 }
 
 impl<'a> Column<'a> {
-    pub fn new(name: String, types: Types<'a>, offset: usize, length: usize) -> Self {
+    pub fn new(name: String, types: Types<'a>, length: usize) -> Self {
         Column {
             name: name,
             types: types,
             inlined: false,
-            offset: offset,
+            offset: None,
             fixed_len: 0,
             variable_len: 0,
         }
-        .set_len(length)
+        .init(length)
     }
 
     pub fn name(&self) -> &str {
@@ -41,7 +41,7 @@ impl<'a> Column<'a> {
     }
 
     pub fn offset(&self) -> usize {
-        self.offset
+        self.offset.expect("Offset unset")
     }
 
     pub fn len(&self) -> usize {
@@ -72,27 +72,36 @@ impl<'a> Column<'a> {
         !self.eq(other)
     }
 
+    pub fn set_offset(&mut self, offset: usize) {
+        self.offset = Some(offset);
+    }
+
     pub fn to_string(&self) -> String {
         let length = if self.inlined {
-            format!("FixedLength: {}", self.fixed_len)
+            format!("FixedLength:{}", self.fixed_len)
         } else {
-            format!("VariableLength: {}", self.variable_len)
+            format!("VariableLength:{}", self.variable_len)
         };
         format!(
-            "Column[{}, {}, Offset: {}, {}]",
+            "Column[{}, {}, Offset:{}, {}]",
             self.name,
             self.types.name(),
-            self.offset,
+            self.offset(),
             length
         )
     }
 
-    fn set_inlined(mut self) -> Self {
-        self.inlined = self.types.is_inlined();
+    fn init(mut self, length: usize) -> Self {
+        self.set_inlined();
+        self.set_len(length);
         self
     }
 
-    fn set_len(mut self, length: usize) -> Self {
+    fn set_inlined(&mut self) {
+        self.inlined = self.types.is_inlined();
+    }
+
+    fn set_len(&mut self, length: usize) {
         if self.inlined {
             self.fixed_len = length;
             self.variable_len = 0;
@@ -100,6 +109,5 @@ impl<'a> Column<'a> {
             self.fixed_len = 4;
             self.variable_len = length;
         }
-        self
     }
 }
