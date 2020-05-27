@@ -41,7 +41,7 @@ impl<'a> Column<'a> {
     }
 
     pub fn offset(&self) -> usize {
-        self.offset.expect("Offset unset")
+        self.offset.expect("Must set offset")
     }
 
     pub fn len(&self) -> usize {
