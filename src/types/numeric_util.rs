@@ -1,6 +1,7 @@
 use crate::types::error::Error;
 use crate::types::error::ErrorKind;
 use std::cmp::PartialEq;
+use std::cmp::PartialOrd;
 use std::result::Result;
 
 pub fn cast<T, U>(val: T) -> Result<U, Error>
@@ -20,7 +21,7 @@ where
     U: PrimitiveFrom<T> + HasLimits,
     T: PrimitiveFrom<U> + FloatNum,
 {
-    if val.gt(&T::from(&U::max())) || val.lt(&T::from(&U::min())) {
+    if val > T::from(&U::max()) || val < T::from(&U::min()) {
         Err(Error::new(ErrorKind::Overflow, "Cast failure"))
     } else {
         Ok(U::from(&val))
@@ -40,8 +41,8 @@ where
 {
     let sum = lhs.add(&rhs);
     let zero = T::zero();
-    if (lhs.lt(&zero) && rhs.lt(&zero) && sum.gt(&zero))
-        || (lhs.gt(&zero) && rhs.gt(&zero) && sum.lt(&zero))
+    if (lhs < zero && rhs < zero && sum > zero)
+        || (lhs > zero && rhs > zero && sum < zero)
     {
         Err(Error::new(
             ErrorKind::Overflow,
@@ -58,8 +59,8 @@ where
 {
     let diff = lhs.subtract(&rhs);
     let zero = T::zero();
-    if (lhs.gt(&zero) && rhs.lt(&zero) && diff.lt(&zero))
-        || (lhs.lt(&zero) && rhs.gt(&zero) && diff.gt(&zero))
+    if (lhs > zero && rhs < zero && diff < zero)
+        || (lhs < zero && rhs > zero && diff > zero)
     {
         Err(Error::new(
             ErrorKind::Overflow,
@@ -76,7 +77,7 @@ where
 {
     let prod = lhs.multiply(&rhs);
     let zero = T::zero();
-    if rhs.ne(&zero) && prod.divide(&rhs).ne(&lhs) {
+    if rhs != zero && prod.divide(&rhs) != lhs {
         Err(Error::new(
             ErrorKind::Overflow,
             "Numeric value out of range",
@@ -91,7 +92,7 @@ where
     T: Arithmetic,
 {
     let zero = T::zero();
-    if rhs.eq(&zero) {
+    if rhs == zero {
         Err(Error::new(ErrorKind::DivideByZero, "Division by zero"))
     } else {
         Ok(lhs.divide(&rhs))
@@ -103,7 +104,7 @@ where
     T: Arithmetic,
 {
     let zero = T::zero();
-    if rhs.eq(&zero) {
+    if rhs == zero {
         Err(Error::new(ErrorKind::DivideByZero, "Division by zero"))
     } else {
         Ok(lhs.modulo(&rhs))
@@ -123,21 +124,14 @@ pub trait HasLimits {
     fn max() -> Self;
 }
 
-pub trait FloatNum {
-    fn lt(&self, other: &Self) -> bool;
-    fn gt(&self, other: &Self) -> bool;
-}
+pub trait FloatNum: PartialOrd {}
 
-pub trait Arithmetic {
+pub trait Arithmetic: PartialEq + PartialOrd {
     fn add(&self, other: &Self) -> Self;
     fn subtract(&self, other: &Self) -> Self;
     fn multiply(&self, other: &Self) -> Self;
     fn divide(&self, other: &Self) -> Self;
     fn modulo(&self, other: &Self) -> Self;
-    fn lt(&self, other: &Self) -> bool;
-    fn gt(&self, other: &Self) -> bool;
-    fn eq(&self, other: &Self) -> bool;
-    fn ne(&self, other: &Self) -> bool;
     fn zero() -> Self;
 }
 
@@ -153,15 +147,7 @@ impl ParseInto<bool> for &str {
     }
 }
 
-impl FloatNum for f64 {
-    fn lt(&self, other: &Self) -> bool {
-        *self < *other
-    }
-
-    fn gt(&self, other: &Self) -> bool {
-        *self > *other
-    }
-}
+impl FloatNum for f64 {}
 
 arithmetic_impl!(i8);
 arithmetic_impl!(i16);

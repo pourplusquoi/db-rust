@@ -373,18 +373,6 @@ macro_rules! arithmetic_impl {
             fn modulo(&self, other: &Self) -> Self {
                 *self % *other
             }
-            fn lt(&self, other: &Self) -> bool {
-                *self < *other
-            }
-            fn gt(&self, other: &Self) -> bool {
-                *self > *other
-            }
-            fn eq(&self, other: &Self) -> bool {
-                *self == *other
-            }
-            fn ne(&self, other: &Self) -> bool {
-                *self != *other
-            }
             fn zero() -> Self {
                 0 as $x
             }
