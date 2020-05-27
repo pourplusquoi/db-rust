@@ -2,6 +2,8 @@
 
 use crate::catalog::column::Column;
 use crate::types::types::Types;
+use std::cmp::Eq;
+use std::cmp::PartialEq;
 
 struct Schema<'a> {
     len: usize,
@@ -87,3 +89,19 @@ impl<'a> Schema<'a> {
         self
     }
 }
+
+impl<'a> PartialEq for Schema<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.columns.len() != self.columns.len() || self.is_inlined() != other.is_inlined() {
+            return false;
+        }
+        for (lhs, rhs) in self.columns.iter().zip(other.columns.iter()) {
+            if lhs != rhs {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl<'a> Eq for Schema<'a> {}

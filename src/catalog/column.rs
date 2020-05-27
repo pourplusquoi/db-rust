@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
 use crate::types::types::Types;
+use std::cmp::Eq;
+use std::cmp::PartialEq;
 
 pub struct Column<'a> {
     // The name of the column.
@@ -64,14 +66,6 @@ impl<'a> Column<'a> {
         self.variable_len
     }
 
-    pub fn eq(&self, other: &Self) -> bool {
-        self.types.id() == other.types.id() && self.inlined == other.inlined
-    }
-
-    pub fn ne(&self, other: &Self) -> bool {
-        !self.eq(other)
-    }
-
     pub fn set_offset(&mut self, offset: usize) {
         self.offset = Some(offset);
     }
@@ -111,3 +105,11 @@ impl<'a> Column<'a> {
         }
     }
 }
+
+impl<'a> PartialEq for Column<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.types.id() == other.types.id() && self.inlined == other.inlined
+    }
+}
+
+impl<'a> Eq for Column<'a> {}
