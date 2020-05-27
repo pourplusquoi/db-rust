@@ -5,7 +5,7 @@ use crate::types::types::Types;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
 
-struct Schema<'a> {
+pub struct Schema<'a> {
     len: usize,
     columns: Vec<Column<'a>>,
     // Indices of uninlined columns starting from 0.
