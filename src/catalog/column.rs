@@ -3,6 +3,7 @@
 use crate::types::types::Types;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
+use std::mem;
 
 pub struct Column<'a> {
     // The name of the column.
@@ -12,7 +13,7 @@ pub struct Column<'a> {
     // Whether the column is inlined.
     inlined: bool,
     // The offset of column in tuple.
-    offset: Option<usize>,
+    offset: usize,
     // If the column is not inlined, this is set to pointer size; else, it is
     // set to length of the fixed length.
     fixed_len: usize,
@@ -22,12 +23,13 @@ pub struct Column<'a> {
 }
 
 impl<'a> Column<'a> {
+    // Note: The caller must set offset.
     pub fn new(name: String, types: Types<'a>, length: usize) -> Self {
         Column {
             name: name,
             types: types,
             inlined: false,
-            offset: None,
+            offset: std::usize::MAX,
             fixed_len: 0,
             variable_len: 0,
         }
@@ -43,7 +45,7 @@ impl<'a> Column<'a> {
     }
 
     pub fn offset(&self) -> usize {
-        self.offset.expect("Must set offset")
+        self.offset
     }
 
     pub fn len(&self) -> usize {
@@ -67,7 +69,7 @@ impl<'a> Column<'a> {
     }
 
     pub fn set_offset(&mut self, offset: usize) {
-        self.offset = Some(offset);
+        self.offset = offset;
     }
 
     pub fn to_string(&self) -> String {
@@ -80,7 +82,7 @@ impl<'a> Column<'a> {
             "Column[{}, {}, Offset:{}, {}]",
             self.name,
             self.types.name(),
-            self.offset(),
+            self.offset,
             length
         )
     }
@@ -100,7 +102,7 @@ impl<'a> Column<'a> {
             self.fixed_len = length;
             self.variable_len = 0;
         } else {
-            self.fixed_len = 4;
+            self.fixed_len = mem::size_of::<u64>();
             self.variable_len = length;
         }
     }

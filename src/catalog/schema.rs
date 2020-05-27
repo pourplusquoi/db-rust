@@ -26,12 +26,20 @@ impl<'a> Schema<'a> {
         self.len
     }
 
+    pub fn columns(&self) -> &Vec<Column> {
+        &self.columns
+    }
+
     pub fn uninlined(&self) -> &Vec<usize> {
         &self.uninlined
     }
 
     pub fn is_inlined(&self) -> bool {
         self.uninlined.is_empty()
+    }
+
+    pub fn nth_is_inlined(&self, idx: usize) -> Option<bool> {
+        self.nth_column(idx).map(|x| x.is_inlined())
     }
 
     pub fn nth_offset(&self, idx: usize) -> Option<usize> {

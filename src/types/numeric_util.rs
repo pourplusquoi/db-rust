@@ -41,9 +41,7 @@ where
 {
     let sum = lhs.add(&rhs);
     let zero = T::zero();
-    if (lhs < zero && rhs < zero && sum > zero)
-        || (lhs > zero && rhs > zero && sum < zero)
-    {
+    if (lhs < zero && rhs < zero && sum > zero) || (lhs > zero && rhs > zero && sum < zero) {
         Err(Error::new(
             ErrorKind::Overflow,
             "Numeric value out of range",
@@ -59,9 +57,7 @@ where
 {
     let diff = lhs.subtract(&rhs);
     let zero = T::zero();
-    if (lhs > zero && rhs < zero && diff < zero)
-        || (lhs < zero && rhs > zero && diff > zero)
-    {
+    if (lhs > zero && rhs < zero && diff < zero) || (lhs < zero && rhs > zero && diff > zero) {
         Err(Error::new(
             ErrorKind::Overflow,
             "Numeric value out of range",
