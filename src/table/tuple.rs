@@ -64,15 +64,15 @@ impl Tuple {
     }
 
     // The caller needs to ensure that |idx| won't be out of range.
-    pub fn value<'a>(&self, schema: &'a Schema, idx: usize) -> Value<'a> {
+    pub fn nth_value<'a>(&self, schema: &'a Schema, idx: usize) -> Value<'a> {
         let mut value = Value::new(schema.nth_types(idx).unwrap().clone());
-        value.deserialize_from(self.data_ptr(schema, idx));
+        value.deserialize_from(self.nth_data_ptr(schema, idx));
         value
     }
 
     // The caller needs to ensure that |idx| won't be out of range.
-    pub fn is_null(&self, schema: &Schema, idx: usize) -> bool {
-        self.value(schema, idx).is_null()
+    pub fn nth_is_null(&self, schema: &Schema, idx: usize) -> bool {
+        self.nth_value(schema, idx).is_null()
     }
 
     pub fn to_string(&self, schema: &Schema) -> String {
@@ -84,10 +84,10 @@ impl Tuple {
             } else {
                 s.push_str(", ");
             }
-            if self.is_null(schema, idx) {
+            if self.nth_is_null(schema, idx) {
                 s.push_str("<NULL>");
             } else {
-                s.push_str(&self.value(schema, idx).to_string());
+                s.push_str(&self.nth_value(schema, idx).to_string());
             }
         }
         s.push_str(") ");
@@ -95,7 +95,7 @@ impl Tuple {
         s
     }
 
-    fn data_ptr(&self, schema: &Schema, idx: usize) -> &[u8] {
+    fn nth_data_ptr(&self, schema: &Schema, idx: usize) -> &[u8] {
         let nth_offset = schema.nth_offset(idx).unwrap();
         let ptr = &self.data.as_slice()[nth_offset..];
         if schema.nth_is_inlined(idx).unwrap() {
