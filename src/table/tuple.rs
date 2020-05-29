@@ -8,7 +8,7 @@ use std::clone::Clone;
 use std::mem;
 
 #[derive(Clone)]
-struct Tuple {
+pub struct Tuple {
     // rid: RID,
     data: Vec<u8>,
 }
@@ -105,4 +105,15 @@ impl Tuple {
             &ptr[str_offset..]
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialize_and_deserialize() {}
+
+    #[test]
+    fn new_and_value() {}
 }

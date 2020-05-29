@@ -18,9 +18,11 @@ use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PAGE_SIZE;
 use crate::common::newable::Newable;
 use crate::page::page::Page;
+use crate::table::tuple::Tuple;
 use std::clone::Clone;
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct TablePage {
     data: [u8; PAGE_SIZE],
     page_id: PageId,
@@ -28,14 +30,52 @@ pub struct TablePage {
     is_dirty: bool,
 }
 
-impl Clone for TablePage {
-    fn clone(&self) -> Self {
-        TablePage {
-            data: self.data,
-            page_id: self.page_id,
-            pin_count: self.pin_count,
-            is_dirty: self.is_dirty,
-        }
+impl TablePage {
+    // TODO: Implement this.
+    pub fn page_id() -> PageId {
+        0
+    }
+
+    // TODO: Implement this.
+    pub fn prev_page_id() -> PageId {
+        0
+    }
+
+    // TODO: Implement this.
+    pub fn next_page_id() -> PageId {
+        0
+    }
+
+    // TODO: Implement this.
+    pub fn set_prev_page_id(&mut self, page_id: PageId) {}
+
+    // TODO: Implement this.
+    pub fn set_next_page_id(&mut self, page_id: PageId) {}
+
+    // TODO: Implement this.
+    pub fn insert_tuple(&mut self) -> bool {
+        false
+    }
+
+    // TODO: Implement this.
+    pub fn mark_delete(&mut self) -> bool {
+        false
+    }
+
+    // TODO: Implement this.
+    pub fn update_tuple(&mut self) -> bool {
+        false
+    }
+
+    // TODO: Implement this.
+    pub fn apply_delete(&mut self) {}
+
+    // TODO: Implement this.
+    pub fn rollback_delete(&mut self) {}
+
+    // TODO: Implement this.
+    pub fn get_tuple(&self) -> Option<Tuple> {
+        None
     }
 }
 

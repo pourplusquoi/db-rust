@@ -17,6 +17,7 @@ use crate::page::page::Page;
 use std::clone::Clone;
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct HeaderPage {
     data: [u8; PAGE_SIZE],
     page_id: PageId,
@@ -99,17 +100,6 @@ impl HeaderPage {
             Err(invalid_input("Name length should be <= 32"))
         } else {
             Ok(())
-        }
-    }
-}
-
-impl Clone for HeaderPage {
-    fn clone(&self) -> Self {
-        HeaderPage {
-            data: self.data,
-            page_id: self.page_id,
-            pin_count: self.pin_count,
-            is_dirty: self.is_dirty,
         }
     }
 }
