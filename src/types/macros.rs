@@ -358,18 +358,6 @@ macro_rules! limits_impl {
 macro_rules! arithmetic_impl {
     ($x:ty) => {
         impl Arithmetic for $x {
-            fn add(&self, other: &Self) -> Self {
-                *self + *other
-            }
-            fn subtract(&self, other: &Self) -> Self {
-                *self - *other
-            }
-            fn multiply(&self, other: &Self) -> Self {
-                *self * *other
-            }
-            fn divide(&self, other: &Self) -> Self {
-                *self / *other
-            }
             fn modulo(&self, other: &Self) -> Self {
                 *self % *other
             }
