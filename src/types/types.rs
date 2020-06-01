@@ -3,9 +3,10 @@ use crate::types::error::ErrorKind;
 use crate::types::limits::*;
 use crate::types::numeric_util::*;
 use std::clone::Clone;
+use std::fmt::Debug;
 use std::result::Result;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Types<'a> {
     Boolean(i8),
     TinyInt(i8),
@@ -17,13 +18,13 @@ pub enum Types<'a> {
     Varchar(Varlen<'a>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Varlen<'a> {
     Owned(Str<String>),
     Borrowed(Str<&'a str>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Str<T: Clone> {
     Val(T),
     MaxVal,

@@ -10,9 +10,10 @@ use crate::types::types::Types;
 use crate::types::types::Varlen;
 use crate::types::varlen_util::*;
 use std::cmp::PartialEq;
+use std::fmt::Debug;
 use std::result::Result;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Value<'a> {
     content: Types<'a>,
     size: usize,
