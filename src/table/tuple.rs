@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::catalog::schema::Schema;
 use crate::common::reinterpret;
 use crate::types::types::Operation;

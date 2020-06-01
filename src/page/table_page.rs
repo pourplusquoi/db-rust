@@ -123,3 +123,6 @@ impl Page for TablePage {
         &mut self.is_dirty
     }
 }
+
+#[cfg(test)]
+mod tests {}
