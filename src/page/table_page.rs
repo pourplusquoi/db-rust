@@ -16,10 +16,10 @@
 use crate::common::config::PageId;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PAGE_SIZE;
-use crate::common::newable::Newable;
 use crate::page::page::Page;
 use crate::table::tuple::Tuple;
 use std::clone::Clone;
+use std::default::Default;
 
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -79,8 +79,8 @@ impl TablePage {
     }
 }
 
-impl Newable for TablePage {
-    fn new() -> Self {
+impl Default for TablePage {
+    fn default() -> Self {
         TablePage {
             data: [0 as u8; PAGE_SIZE],
             page_id: INVALID_PAGE_ID,

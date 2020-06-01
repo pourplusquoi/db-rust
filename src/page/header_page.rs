@@ -11,10 +11,10 @@ use crate::common::config::PageId;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PAGE_SIZE;
 use crate::common::error::*;
-use crate::common::newable::Newable;
 use crate::common::reinterpret;
 use crate::page::page::Page;
 use std::clone::Clone;
+use std::default::Default;
 
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -26,6 +26,10 @@ pub struct HeaderPage {
 }
 
 impl HeaderPage {
+    pub fn new() -> Self {
+        HeaderPage::default()
+    }
+
     pub fn init(&mut self) {
         self.set_record_count(0);
     }
@@ -104,8 +108,8 @@ impl HeaderPage {
     }
 }
 
-impl Newable for HeaderPage {
-    fn new() -> Self {
+impl Default for HeaderPage {
+    fn default() -> Self {
         HeaderPage {
             data: [0 as u8; PAGE_SIZE],
             page_id: INVALID_PAGE_ID,

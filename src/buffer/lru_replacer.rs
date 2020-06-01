@@ -2,11 +2,11 @@
 // all the pages that are unpinned and ready to be swapped.
 
 use crate::buffer::replacer::Replacer;
-use crate::common::newable::Newable;
 use std::clone::Clone;
 use std::cmp::Eq;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::default::Default;
 use std::hash::Hash;
 
 pub struct LRUReplacer<T>
@@ -18,11 +18,11 @@ where
     clock: u32,
 }
 
-impl<T> Newable for LRUReplacer<T>
+impl<T> Default for LRUReplacer<T>
 where
     T: Clone + Eq + Hash,
 {
-    fn new() -> Self {
+    fn default() -> Self {
         LRUReplacer {
             forward: HashMap::new(),
             backward: BTreeMap::new(),
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn lru_replacer_i32() {
-        let mut lru = LRUReplacer::new();
+        let mut lru = LRUReplacer::default();
 
         // Push element into replacer.
         lru.insert(1);
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn lru_replacer_string() {
-        let mut lru = LRUReplacer::new();
+        let mut lru = LRUReplacer::default();
 
         lru.insert(String::from("hello"));
         lru.insert(String::from("world"));

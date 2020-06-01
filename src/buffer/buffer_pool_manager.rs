@@ -304,7 +304,7 @@ where
     pub fn new(size: usize) -> Self {
         Data {
             pool_size: size,
-            pages: vec![T::new(); size],
+            pages: vec![T::default(); size],
             page_table: HashMap::new(),
             free_list: Vec::new(),
         }
@@ -325,7 +325,7 @@ where
 {
     pub fn new(db_file: &str) -> std::io::Result<Self> {
         let actor = Actor {
-            replacer: R::new(),
+            replacer: R::default(),
             disk_mgr: DiskManager::new(db_file)?,
         };
         Ok(actor)

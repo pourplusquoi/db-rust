@@ -6,9 +6,9 @@
 
 use crate::common::config::PageId;
 use crate::common::config::PAGE_SIZE;
-use crate::common::newable::Newable;
+use std::default::Default;
 
-pub trait Page: Newable {
+pub trait Page: Default {
     fn data(&self) -> &[u8; PAGE_SIZE];
     fn data_mut(&mut self) -> &mut [u8; PAGE_SIZE];
     fn page_id(&self) -> PageId;
