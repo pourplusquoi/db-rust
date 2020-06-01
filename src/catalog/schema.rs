@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::catalog::column::Column;
 use crate::types::types::Types;
 use std::cmp::Eq;

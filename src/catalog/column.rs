@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::types::types::Types;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
