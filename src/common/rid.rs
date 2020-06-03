@@ -1,4 +1,5 @@
 use crate::common::config::PageId;
+use crate::common::config::INVALID_PAGE_ID;
 use std::clone::Clone;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
@@ -31,6 +32,15 @@ impl Rid {
             "Rid[page_id: {}, slot_num: {}]",
             self.page_id, self.slot_num
         );
+    }
+}
+
+impl Default for Rid {
+    fn default() -> Self {
+        Rid {
+            page_id: INVALID_PAGE_ID,
+            slot_num: 0,
+        }
     }
 }
 

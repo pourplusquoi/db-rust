@@ -18,6 +18,7 @@ use crate::common::config::CHECKSUM_SIZE;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PAGE_SIZE;
 use crate::common::reinterpret;
+use crate::common::rid::Rid;
 use crate::page::page::Page;
 use crate::table::tuple::Tuple;
 use std::clone::Clone;
@@ -59,28 +60,28 @@ impl TablePage {
     }
 
     // TODO: Implement this.
-    pub fn insert_tuple(&mut self, tuple: Tuple) -> bool {
+    pub fn insert_tuple(&mut self, tuple: Tuple) -> Option<Rid> {
         false
     }
 
     // TODO: Implement this.
-    pub fn mark_delete(&mut self) -> bool {
+    pub fn mark_delete(&mut self, rid: &Rid) -> bool {
         false
     }
 
     // TODO: Implement this.
-    pub fn replace_tuple(&mut self, tuple: Tuple) -> Option<Tuple> {
+    pub fn replace_tuple(&mut self, rid: &Rid, tuple: Tuple) -> Option<Tuple> {
         None
     }
 
     // TODO: Implement this.
-    pub fn apply_delete(&mut self) {}
+    pub fn apply_delete(&mut self, rid: &Rid) {}
 
     // TODO: Implement this.
-    pub fn rollback_delete(&mut self) {}
+    pub fn rollback_delete(&mut self, rid: &Rid) {}
 
     // TODO: Implement this.
-    pub fn get_tuple(&self) -> Option<Tuple> {
+    pub fn get_tuple(&self, rid: &Rid) -> Option<Tuple> {
         None
     }
 
