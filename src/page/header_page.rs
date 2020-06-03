@@ -8,6 +8,7 @@
 //  --------------------------------------------------------------------------------
 
 use crate::common::config::PageId;
+use crate::common::config::CHECKSUM_SIZE;
 use crate::common::config::INVALID_PAGE_ID;
 use crate::common::config::PAGE_SIZE;
 use crate::common::error::*;
@@ -16,7 +17,8 @@ use crate::page::page::Page;
 use std::clone::Clone;
 use std::default::Default;
 
-#[allow(dead_code)]
+const DATA_OFFSET: usize = CHECKSUM_SIZE;
+
 #[derive(Clone)]
 pub struct HeaderPage {
     data: [u8; PAGE_SIZE],
@@ -27,7 +29,7 @@ pub struct HeaderPage {
 
 impl HeaderPage {
     pub fn new() -> Self {
-        HeaderPage::default()
+        Self::default()
     }
 
     pub fn init(&mut self) {
@@ -120,20 +122,26 @@ impl Default for HeaderPage {
 }
 
 impl Page for HeaderPage {
-    fn data(&self) -> &[u8; PAGE_SIZE] {
-        &self.data
-    }
-
-    fn data_mut(&mut self) -> &mut [u8; PAGE_SIZE] {
-        &mut self.data
+    fn reset(&mut self) {
+        for byte in self.data.iter_mut().skip(DATA_OFFSET) {
+            *byte = 0;
+        }
     }
 
     fn page_id(&self) -> PageId {
         self.page_id
     }
 
-    fn page_id_mut(&mut self) -> &mut PageId {
-        &mut self.page_id
+    fn set_page_id(&mut self, page_id: PageId) {
+        self.page_id = page_id;
+    }
+
+    fn data(&self) -> &[u8; PAGE_SIZE] {
+        &self.data
+    }
+
+    fn data_mut(&mut self) -> &mut [u8; PAGE_SIZE] {
+        &mut self.data
     }
 
     fn pin_count(&self) -> i32 {

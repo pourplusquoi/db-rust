@@ -224,7 +224,7 @@ where
         }
         .and_then(|page| {
             if need_reset {
-                Self::reset_page(page);
+                page.reset();
             }
             page.pin();
             Ok(page)
@@ -261,14 +261,6 @@ where
                 disk_mgr.read_page(page.page_id(), page.data_mut())?;
                 Ok(())
             }
-        }
-    }
-
-    // Resets the specified page by writing 0's to its content.
-    fn reset_page(page: &mut T) {
-        info!("Reset page");
-        for byte in page.data_mut().iter_mut() {
-            *byte = 0;
         }
     }
 }
@@ -342,11 +334,12 @@ fn validate(page_id: PageId) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::config::CHECKSUM_SIZE;
     use crate::common::reinterpret;
     use crate::disk::disk_manager::BITMAP_FILE_SUFFIX;
     use crate::page::table_page::TablePage;
     use crate::testing::file_deleter::FileDeleter;
+
+    const SAFE_OFFSET: usize = 128;
 
     type TestingBufferPoolManager = DefaultBufferPoolManager<TablePage>;
 
@@ -371,7 +364,7 @@ mod tests {
         assert_eq!(HEADER_PAGE_ID, page.page_id());
 
         // Change content in page one.
-        reinterpret::write_str(&mut page.data_mut()[CHECKSUM_SIZE..], "Hello");
+        reinterpret::write_str(&mut page.data_mut()[SAFE_OFFSET..], "Hello");
 
         // Create 9 new pages.
         for i in 1..10 {
@@ -401,10 +394,7 @@ mod tests {
 
         // Check read content.
         let page = maybe_page.unwrap();
-        assert_eq!(
-            "Hello",
-            reinterpret::read_str(&page.data()[CHECKSUM_SIZE..])
-        );
+        assert_eq!("Hello", reinterpret::read_str(&page.data()[SAFE_OFFSET..]));
     }
 
     #[test]
@@ -472,7 +462,7 @@ mod tests {
 
                 // Only flush pages with |ID % 2 == 0|;
                 if id % 2 == 0 {
-                    reinterpret::write_i32(&mut page.data_mut()[CHECKSUM_SIZE..], id);
+                    reinterpret::write_i32(&mut page.data_mut()[SAFE_OFFSET..], id);
                 }
                 assert!(bpm.unpin_page(id, /*is_dirty=*/ id % 2 == 0).is_ok());
             }
@@ -490,7 +480,7 @@ mod tests {
                 let page = bpm.fetch_page(id).unwrap();
                 assert_eq!(
                     if id % 2 == 0 { id } else { 0 },
-                    reinterpret::read_i32(&page.data()[CHECKSUM_SIZE..])
+                    reinterpret::read_i32(&page.data()[SAFE_OFFSET..])
                 );
             }
             for idx in 5..10 {
