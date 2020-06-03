@@ -31,7 +31,7 @@ impl Rid {
         format!(
             "Rid[page_id: {}, slot_num: {}]",
             self.page_id, self.slot_num
-        );
+        )
     }
 }
 
