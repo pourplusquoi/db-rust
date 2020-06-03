@@ -61,7 +61,7 @@ impl TablePage {
 
     // TODO: Implement this.
     pub fn insert_tuple(&mut self, tuple: Tuple) -> Option<Rid> {
-        false
+        None
     }
 
     // TODO: Implement this.
