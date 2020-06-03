@@ -59,7 +59,7 @@ impl TablePage {
     }
 
     // TODO: Implement this.
-    pub fn insert_tuple(&mut self) -> bool {
+    pub fn insert_tuple(&mut self, tuple: Tuple) -> bool {
         false
     }
 
@@ -69,8 +69,8 @@ impl TablePage {
     }
 
     // TODO: Implement this.
-    pub fn update_tuple(&mut self) -> bool {
-        false
+    pub fn replace_tuple(&mut self, tuple: Tuple) -> Option<Tuple> {
+        None
     }
 
     // TODO: Implement this.
