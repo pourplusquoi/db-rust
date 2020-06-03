@@ -2,7 +2,9 @@ use crate::catalog::column::Column;
 use crate::types::types::Types;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
+use std::fmt::Debug;
 
+#[derive(Debug)]
 pub struct Schema<'a> {
     len: usize,
     columns: Vec<Column<'a>>,

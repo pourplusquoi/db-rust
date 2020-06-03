@@ -1,8 +1,10 @@
 use crate::types::types::Types;
 use std::cmp::Eq;
 use std::cmp::PartialEq;
+use std::fmt::Debug;
 use std::mem;
 
+#[derive(Debug)]
 pub struct Column<'a> {
     // The name of the column.
     name: String,
